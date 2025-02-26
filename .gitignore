@@ -1,0 +1,12 @@
+*.cm*
+*.o
+*.a
+*.exe
+camlp5.*
+local-install
+META
+_build
+*ppo.ml
+mk_meta.ml
+mk_meta
+*.corrected

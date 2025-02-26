@@ -1,0 +1,13 @@
+interp_tokens.cmo interp_lexer.cmo pa_fmtformat.cmo interp_tokens.cmi interp_lexer.cmi pa_fmtformat.cmi interp_tokens.cmx interp_lexer.cmx pa_fmtformat.cmx: 
+interp_tokens.cmo :
+interp_tokens.cmx :
+interp_lexer.cmo : \
+    interp_tokens.cmo
+interp_lexer.cmx : \
+    interp_tokens.cmx
+pa_fmtformat.cmo : \
+    interp_tokens.cmo \
+    interp_lexer.cmo
+pa_fmtformat.cmx : \
+    interp_tokens.cmx \
+    interp_lexer.cmx

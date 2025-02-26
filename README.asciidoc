@@ -1,0 +1,7 @@
+latex_tools 0.01`: An OCaml library to help wrangling latex
+===========================================================
+:toc:
+:toc-placement: preamble
+
+Directly inspired by TexSoup.  I chose OCaml b/c I want to try to do
+more interesting things, and .... I hate Python.

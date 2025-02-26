@@ -1,0 +1,43 @@
+version: "0.01"
+synopsis: "An OCaml library to help wrangling latex"
+description:
+"""
+An OCaml library to help wrangling latex
+
+Directly inspired by TexSoup.  I chose OCaml b/c I want to try to do
+more interesting things, and .... I hate Python.
+"""
+opam-version: "2.0"
+x-maintenance-intent: [ "(latest)" ]
+maintainer: "Chet Murthy <chetsky@gmail.com>"
+authors: ["Chet Murthy"]
+homepage: "https://github.com/chetmurthy/latex_tools"
+license: "BSD-3-Clause"
+bug-reports: "https://github.com/chetmurthy/latex_tools/issues"
+dev-repo: "git+https://github.com/chetmurthy/latex_tools.git"
+doc: "https://github.com/chetmurthy/latex_tools/doc"
+
+depends: [
+  "ocaml"       { >= "4.10.0" }
+  "camlp5-buildscripts" { >= "0.02" }
+  "camlp5"      { >= "8.01.00" }
+  "pcre2" { >= "8.0.3" }
+  "pa_ppx"      { >= "0.12" }
+  "not-ocamlfind" { >= "0.13" }
+  "ounit" { >= "2.2.7" }
+  "fmt"
+  "mdx" { >= "2.3.0" & with-test}
+  "pp-binary-ints" {with-test}
+  "pa_ppx_regexp" { >= "0.04" }
+]
+build: [
+  [make "DEBUG=-g" "sys"]
+  [make "test"] {with-test}
+]
+install: [make "install"]
+url {
+  src: ""
+  checksum: [
+    "sha512="
+  ]
+}
