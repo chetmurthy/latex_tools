@@ -29,7 +29,7 @@ type t =
   | `Spacer
   | `EOF ] [@@deriving show { with_path = false }]
 
-type 'a token = { it : 'a ; text :  string ; loc : Ploc.t }
+type 'a token = { it : 'a ; text :  string ; loc : Pp_MLast.Ploc.t }[@@deriving show { with_path = false }]
 
 let pp_tex pps t = Fmt.(pf pps "%s" t.text)
 

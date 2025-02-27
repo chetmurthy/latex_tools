@@ -19,3 +19,7 @@ tools.cmx : \
     latex_tokens.cmx \
     latex_lexer.cmx \
     tools.cmi
+environments.cmi : \
+    latex_tokens.cmo
+tools.cmi : \
+    latex_tokens.cmo

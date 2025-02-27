@@ -64,7 +64,7 @@ if not !Sys.interactive then
              "-roundtrip", Set roundtrip, "roundtrip (dump back text of tokens)"
            ]
            (fun s -> fname := s)
-           "latex_token_test.exe <fname>");
+           "latex_token_tool.exe <fname>");
     let roundtrip = !roundtrip in
     latex_tokens' ~roundtrip !fname
   end

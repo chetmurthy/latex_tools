@@ -1,4 +1,4 @@
-(**pp -syntax camlp5o -package pa_ppx_regexp,pa_ppx.runtime,pa_ppx.runtime_fat,pa_ppx.utils,pa_ppx.testutils,bos,pa_ppx.import *)
+(**pp -syntax camlp5o -package pa_ppx_regexp,pa_ppx.runtime,pa_ppx.runtime_fat,pa_ppx.utils,pa_ppx.testutils,bos,pa_ppx.import,pa_ppx.deriving_plugins.std *)
 
 open OUnit2
 open Pa_ppx_testutils
@@ -13,7 +13,7 @@ open Latex_tokens
 
 module StripSpaceAfterBeginEnd = struct
 
-type t = [%import: Latex_tokens.t]
+type t = [%import: Latex_tokens.t][@@deriving show { with_path = false }]
 
 let pp_tex = Latex_tokens.pp_tex
 
@@ -64,7 +64,7 @@ let stream strm =
 end
 
 module MarkEnvironmentBeginEnd = struct
-type t = [ Latex_tokens.t | `EnvironBegin of string | `EnvironEnd of string ]
+type t = [ Latex_tokens.t | `EnvironBegin of string | `EnvironEnd of string ][@@deriving show { with_path = false }]
 
 let pp_tex pps (t : t token) =
   match t with
@@ -115,7 +115,7 @@ let stream strm =
       let t : t token = {it=`EnvironEnd tok4.text; text=tok1.text^tok2.text^tok3.text^tok4.text^tok5.text; loc} in
       [< 't ; conv strm >]
 
-  | [< 't ; strm >] -> [< 't ; conv strm >]
+  | [< '(t : Latex_tokens.t token) ; strm >] -> [< '(t : Latex_tokens.t token :> t token) ; conv strm >]
   | [< >] -> [< >]
  in conv strm
 
@@ -123,7 +123,7 @@ end
 
 module CoalesceEnvironments = struct
 module EM = MarkEnvironmentBeginEnd
-type t = [ EM.t | `Environment of string * t token list ]
+type t = [ EM.t | `Environment of string * t token list ][@@deriving show { with_path = false }]
 
 let rec pp_tex pps (t : t token) =
   match t with

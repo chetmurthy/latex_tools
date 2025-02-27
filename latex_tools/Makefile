@@ -11,7 +11,8 @@ PACKAGES := $(PACKAGES),fmt,pcre2,str,pa_ppx.base,pa_ppx.utils,pa_ppx.deriving_p
 TARGET_PACKAGE = latex_tools
 TARGET = $(TARGET_PACKAGE).cma
 ML = latex_tokens.ml latex_lexer.ml environments.ml tools.ml
-ALLSRC=$(ML)
+MLI = environments.mli tools.mli
+ALLSRC=$(ML) $(MLI)
 ALLPACKAGES=$(PACKAGES)
 
 OCAMLCFLAGS := $(OCAMLCFLAGS) -for-pack Latex_tools
