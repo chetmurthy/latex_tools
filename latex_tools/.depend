@@ -1,7 +1,11 @@
-latex_tokens.cmo latex_lexer.cmo latex_tokens.cmi latex_lexer.cmi latex_tokens.cmx latex_lexer.cmx: 
+latex_tokens.cmo latex_lexer.cmo environments.cmo latex_tokens.cmi latex_lexer.cmi environments.cmi latex_tokens.cmx latex_lexer.cmx environments.cmx: 
 latex_tokens.cmo :
 latex_tokens.cmx :
 latex_lexer.cmo : \
     latex_tokens.cmo
 latex_lexer.cmx : \
+    latex_tokens.cmx
+environments.cmo : \
+    latex_tokens.cmo
+environments.cmx : \
     latex_tokens.cmx

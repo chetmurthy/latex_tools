@@ -28,4 +28,6 @@ type t =
   | `Spacer
   | `EOF ] [@@deriving show { with_path = false }]
 
-type t_token = (t * string * Ploc.t)
+type 'a token = { it : 'a ; text :  string ; loc : Ploc.t }
+
+let pp_tex pps t = Fmt.(pf pps "%s" t.text)

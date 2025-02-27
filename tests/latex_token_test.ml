@@ -33,11 +33,11 @@ let python_quote s =
 let list_of_tokens_eof lexbuf =
   let rec lrec acc =
     match token lexbuf with
-      [(`EOF, _, _)] -> List.rev acc
+      [{it=`EOF}] -> List.rev acc
     | t -> lrec ((List.rev t) @ acc)
   in lrec []
 
-let fmt1 (t,s,_) =
+let fmt1 {it=t;text=s} =
   let t_string = Fmt.(str "%a" pp t) in
   let t_string = String.sub t_string 1 ((String.length t_string) - 1) in
   let s = Fmt.(str "(%a, %a)@." string (python_quote s) (quote ~mark:"'" string) t_string) in
@@ -47,7 +47,7 @@ let latex_tokens ~roundtrip fname =
   let lexbuf = Sedlexing.Utf8.from_channel (open_in fname) in
   let toks = list_of_tokens_eof lexbuf in
   if roundtrip then
-    toks |> List.iter (fun (_,s,_) -> print_string s)
+    toks |> List.iter (fun {text=s} -> print_string s)
   else
     let l = List.map fmt1 toks in
     Fmt.(pf stdout "%a@." (list ~sep:(const string "\n") string) l)
