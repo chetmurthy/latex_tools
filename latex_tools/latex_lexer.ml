@@ -89,6 +89,15 @@ let spacer = [%sedlex.regexp? ((Star (cc_Spacer), cc_EndOfLine, Star (cc_Spacer)
      | Plus (cc_Spacer)
     )]
 
+let size_prefix = [%sedlex.regexp? ("left" | "right" | "big" | "Big" | "bigg" | "Bigg")]
+let brackets_delimiters = [%sedlex.regexp? (
+    "(" | ")" | "<" | ">" | "[" | "]" | "{" | "}" | "\\{" | "\\}" | "." | "|" | "\\langle" |
+    "\\rangle" |  "\\lfloor" | "\\rfloor" | "\\lceil" | "\\rceil" | "\\ulcorner" |
+    "\\urcorner" | "\\lbrack" | "\\rbrack")]
+let punctuation_commands = [%sedlex.regexp?
+                            (size_prefix, brackets_delimiters)
+                           ]
+
 let locate buf =
   let (spos, epos) = Sedlexing.lexing_positions buf in
   Ploc.make_unlined (spos.Lexing.pos_cnum, epos.Lexing.pos_cnum)
@@ -119,6 +128,15 @@ let token buf =
   | (cc_Escape, cc_BracketEnd) -> [(DisplayMathGroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
   | (cc_Escape, cc_ParenBegin) -> [(MathGroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
   | (cc_Escape, cc_ParenEnd) -> [(MathGroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
+
+  | (cc_Escape, punctuation_commands) ->
+     let lexeme = Sedlexing.Utf8.lexeme buf in
+     let len = String.length lexeme in
+     let pos = locate buf in
+     [
+       (Escape, "\\", pos)
+     ; (PunctuationCommandName, String.sub lexeme 1 (len - 1), pos)
+     ]
 
   | cc_Escape -> [(Escape, Sedlexing.Utf8.lexeme buf, locate buf)]
   | cc_GroupBegin -> [(GroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
