@@ -49,21 +49,27 @@ let fmt1 (t,s,_) =
   let s = Fmt.(str "(%a, %a)@." string (python_quote s) (quote ~mark:"'" pp) t) in
   [%subst {|\n|} / "" / g m] s
 
-let latex_tokens fname =
+let latex_tokens ~roundtrip fname =
   let lexbuf = Sedlexing.Utf8.from_channel (open_in fname) in
   let toks = list_of_tokens_eof lexbuf in
-  let l = List.map fmt1 toks in
-  Fmt.(pf stdout "%a@." (list ~sep:(const string "\n") string) l)
+  if roundtrip then
+    toks |> List.iter (fun (_,s,_) -> print_string s)
+  else
+    let l = List.map fmt1 toks in
+    Fmt.(pf stdout "%a@." (list ~sep:(const string "\n") string) l)
 
 let _ = 
 if not !Sys.interactive then
   let fname = ref "" in
+  let roundtrip = ref false in
   begin
     Arg.(parse [
+             "-roundtrip", Set roundtrip, "roundtrip (dump back text of tokens)"
            ]
            (fun s -> fname := s)
            "latex_token_test.exe <fname>");
-    latex_tokens !fname
+    let roundtrip = !roundtrip in
+    latex_tokens ~roundtrip !fname
   end
 else ()
 
