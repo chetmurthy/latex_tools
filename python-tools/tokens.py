@@ -14,4 +14,4 @@ args = parser.parse_args()
 txt = open(args.file).read()
 buf = tokenize(categorize(txt))
 for c in buf:
-    print((c, c.category))
+    print((c, c.category.name))

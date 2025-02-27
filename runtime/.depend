@@ -1,3 +1,5 @@
-runtime.cmo runtime.cmi runtime.cmx: 
-runtime.cmo :
-runtime.cmx :
+latex_tools_runtime.cmo latex_tools_runtime.cmi latex_tools_runtime.cmx: 
+latex_tools_runtime.cmo :
+latex_tools_runtime.cmx :
+mk_meta.cmo :
+mk_meta.cmx :
