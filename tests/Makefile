@@ -23,21 +23,24 @@ test:: all
 latex_tools_test.exe: latex_tools_test.cmo
 	$(LAUNCH) $(OCAMLFIND) ocamlc -linkall -linkpkg $(OCAMLCFLAGS) -package $(PACKAGES) -linkpkg -linkall -o $@ $<
 
-tokens.TEST: token-fixtures.ocaml-out token-fixtures.python-out token-fixtures.ocaml-roundtrip-out
-	for f in token-fixtures/*.tex; do echo $$f ; $(DIFF) -Bbwiu token-fixtures.python-out/`basename $$f` token-fixtures.ocaml-out/`basename $$f` ; done
-	for f in token-fixtures/*.tex; do echo $$f ; $(DIFF) -Bbwiu token-fixtures/`basename $$f` token-fixtures.ocaml-roundtrip-out/`basename $$f` ; done
+TOKENTEXFILES=$(wildcard token-fixtures/*.tex)
+TOKENTESTS=$(patsubst %.tex,%.TOKEN-TEST,$(TOKENTEXFILES))
+ROUNDTRIPTESTS=$(patsubst %.tex,%.ROUNDTRIP-TEST,$(TOKENTEXFILES))
 
-token-fixtures.python-out::
-	rm -rf token-fixtures.python-out && mkdir token-fixtures.python-out
-	for f in token-fixtures/*.tex; do echo $$f ; python3 ../python-tools/tokens.py --dump-tokens $$f | grep -v MergedSpacer > token-fixtures.python-out/`basename $$f` || /bin/true ; done
+.tex.TOKEN-TEST::
+	mkdir -p tmp/$(shell dirname $*)
+	python3 ../python-tools/tokens.py --dump-tokens $*.tex | grep -q -v MergedSpacer > tmp/$*.python-tokens-out || /bin/true
+	./latex_token_test.exe $*.tex | grep -q -v MergedSpacer > tmp/$*.ocaml-tokens.out || /bin/true
+	$(DIFF) -Bbwiu tmp/$*.python-tokens-out tmp/$*.ocaml-tokens.out
 
-token-fixtures.ocaml-out:: latex_token_test.exe
-	rm -rf token-fixtures.ocaml-out && mkdir token-fixtures.ocaml-out
-	for f in token-fixtures/*.tex; do echo $$f ; ./latex_token_test.exe $$f | grep -v MergedSpacer > token-fixtures.ocaml-out/`basename $$f` ; done
+.tex.ROUNDTRIP-TEST::
+	mkdir -p tmp/$(shell dirname $*)
+	./latex_token_test.exe -roundtrip $*.tex > tmp/$*.tex
+	$(DIFF) -Bbwiu $*.tex tmp/$*.tex
 
-token-fixtures.ocaml-roundtrip-out:: latex_token_test.exe
-	rm -rf token-fixtures.ocaml-roundtrip-out && mkdir token-fixtures.ocaml-roundtrip-out
-	for f in token-fixtures/*.tex; do echo $$f ; ./latex_token_test.exe -roundtrip $$f > token-fixtures.ocaml-roundtrip-out/`basename $$f` ; done
+.SUFFIXES: .TOKEN-TEST .ROUNDTRIP-TEST
+
+tokens.TEST: $(TOKENTESTS) $(ROUNDTRIPTESTS)
 
 clean::
 	rm -rf *.cm* _build *.exe token-fixtures.*-out
@@ -46,4 +49,4 @@ latex_token_test.exe: latex_token_test.cmo
 	$(LAUNCH) $(OCAMLFIND) ocamlc -linkall -linkpkg $(OCAMLCFLAGS) -package $(PACKAGES),latex_tools -linkpkg -linkall -o $@ $<
 
 clean::
-	rm -rf *.cm* _build *.exe token-fixtures.*-out
+	rm -rf *.cm* _build *.exe tmp
