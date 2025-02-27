@@ -27,11 +27,23 @@ let list (l : t token list) =
        conv rev_lhs (tok1::tok2::tl)
 
     | ({it=`Escape} as tok1)
+      ::({it=`CommandName; text="begin"} as tok2)
+      ::tl
+      ->
+       conv (tok2::tok1::rev_lhs) tl
+
+    | ({it=`Escape} as tok1)
       ::({it=`CommandName; text="end"} as tok2)
       ::{it=`MergedSpacer}
       ::tl
       ->
        conv rev_lhs (tok1::tok2::tl)
+
+    | ({it=`Escape} as tok1)
+      ::({it=`CommandName; text="end"} as tok2)
+      ::tl
+      ->
+       conv (tok2::tok1::rev_lhs) tl
 
     | (t : t token)::tl -> conv ((t : t token :> t token)::rev_lhs) tl
     | [] -> List.rev rev_lhs
@@ -40,10 +52,10 @@ let list (l : t token list) =
 
 let stream strm =
   let rec conv = parser
-    [< '{it=`Escape} as tok1 ; '{it=`CommandName; text="begin"} as tok2 ; '{it=`MergedSpacer} ;
+    [< '{it=`Escape} as tok1 ; '{it=`CommandName; text="begin"} as tok2 ;
        _=Std.plist (parser [< '{it=`MergedSpacer} >] -> ()) ; strm >] -> [< 'tok1 ; 'tok2 ; conv strm >]
 
-  | [< '{it=`Escape} as tok1 ; '{it=`CommandName; text="end"} as tok2 ; '{it=`MergedSpacer} ;
+  | [< '{it=`Escape} as tok1 ; '{it=`CommandName; text="end"} as tok2 ;
        _=Std.plist (parser [< '{it=`MergedSpacer} >] -> ()) ; strm >] -> [< 'tok1 ; 'tok2 ; conv strm >]
 
   | [< 't ; strm >] -> [< 't ; conv strm >]

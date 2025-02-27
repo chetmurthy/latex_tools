@@ -46,3 +46,9 @@ let stream_of_tokens token lexbuf =
       [{it=`EOF}] -> [< >]
     | l -> [< Std.stream_of_list l ; lrec () >]
   in lrec ()
+
+let list_to_string pp1 l =
+  Fmt.(str "%a" (list ~sep:nop pp1) l)
+
+let stream_to_string pp1 strm =
+  Fmt.(str "%a" (iter ~sep:nop Stream.iter pp1) strm)
