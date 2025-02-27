@@ -12,30 +12,22 @@ let python_quote s =
   let contains_squote = String.contains s '\'' in
   let contains_dquote = String.contains s '"' in
   let b = Buffer.create (String.length s) in
-  (match (contains_squote, contains_dquote) with
-
-     (false, _) ->
-      Buffer.add_char b '\'' ;
-      s |> String.iter (fun c ->
-               if c = '"' then Buffer.add_char b c
-               else Buffer.add_string b (Char.escaped c)) ;
-      Buffer.add_char b '\''
-
-   | (true, true) ->
-      Buffer.add_char b '\'' ;
-      s |> String.iter (fun c ->
-               if c = '\'' then Buffer.add_string b "\\'"
-               else if c = '"' then Buffer.add_char b c
-               else Buffer.add_string b (Char.escaped c)) ;
-      Buffer.add_char b '\''
-
-   | (true, false) ->
-      Buffer.add_char b '"' ;
-      s |> String.iter (fun c ->
-               if c = '\'' then Buffer.add_char b c
-               else Buffer.add_string b (Char.escaped c)) ;
-      Buffer.add_char b '"'
-  ) ;
+  let (wrapper_char, escape_squote) =
+    match (contains_squote, contains_dquote) with
+      (false, _) -> ('\'', false)
+    | (true, true) -> ('\'', true)
+    | (true, false) -> ('"', false) in
+  Buffer.add_char b wrapper_char ;
+  s |> String.iter (fun c ->
+           if c = '"' then Buffer.add_char b c
+           else if c = '\'' then
+             if escape_squote then
+               Buffer.add_string b "\\'"
+             else Buffer.add_char b c 
+           else if Char.code c > 127 then Buffer.add_char b c
+           else Buffer.add_string b (Char.escaped c)
+         ) ;
+  Buffer.add_char b wrapper_char ;
   Buffer.contents b
 
 let list_of_tokens_eof lexbuf =

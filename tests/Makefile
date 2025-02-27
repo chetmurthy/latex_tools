@@ -24,8 +24,8 @@ latex_tools_test.exe: latex_tools_test.cmo
 	$(LAUNCH) $(OCAMLFIND) ocamlc -linkall -linkpkg $(OCAMLCFLAGS) -package $(PACKAGES) -linkpkg -linkall -o $@ $<
 
 tokens.TEST: token-fixtures.ocaml-out token-fixtures.python-out token-fixtures.ocaml-roundtrip-out
-	for f in token-fixtures/*.tex; do $(DIFF) -Bbwiu token-fixtures.python-out/`basename $$f` token-fixtures.ocaml-out/`basename $$f` ; done
-	for f in token-fixtures/*.tex; do $(DIFF) -Bbwiu token-fixtures/`basename $$f` token-fixtures.ocaml-roundtrip-out/`basename $$f` ; done
+	for f in token-fixtures/*.tex; do echo $$f ; $(DIFF) -Bbwiu token-fixtures.python-out/`basename $$f` token-fixtures.ocaml-out/`basename $$f` ; done
+	for f in token-fixtures/*.tex; do echo $$f ; $(DIFF) -Bbwiu token-fixtures/`basename $$f` token-fixtures.ocaml-roundtrip-out/`basename $$f` ; done
 
 token-fixtures.python-out::
 	rm -rf token-fixtures.python-out && mkdir token-fixtures.python-out
