@@ -28,7 +28,7 @@ tokens.TEST: tokens.ocaml-output tokens.python-output
 
 tokens.python-output::
 	rm -rf token-fixtures.python-out && mkdir token-fixtures.python-out
-	for f in token-fixtures/*.tex; do echo $$f ; python3 ../python-tools/tokens.py $$f | grep -v MergedSpacer > token-fixtures.python-out/`basename $$f` || /bin/true ; done
+	for f in token-fixtures/*.tex; do echo $$f ; python3 ../python-tools/tokens.py --dump-tokens $$f | grep -v MergedSpacer > token-fixtures.python-out/`basename $$f` || /bin/true ; done
 
 clean::
 	rm -rf *.cm* _build *.exe token-fixtures.python-out

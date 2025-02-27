@@ -7,11 +7,14 @@ from TexSoup.category import categorize
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", help="increase output verbosity")
+parser.add_argument("--dump-tokens", help="dump tokens",
+                    action="store_true")
 parser.add_argument("file",
                     help="tokenize the file's contents")
 args = parser.parse_args()
 
 txt = open(args.file).read()
 buf = tokenize(categorize(txt))
-for c in buf:
-    print((c, c.category.name))
+if args.dump_tokens:
+    for c in buf:
+        print((c, c.category.name))
