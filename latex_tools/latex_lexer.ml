@@ -130,5 +130,6 @@ let token buf =
  *)
   | (Opt spacer, Sub(text_char, (cc_Spacer | cc_EndOfLine)), Star(text_char)) -> [(Text, Sedlexing.Utf8.lexeme buf, locate buf)]
   | (cc_MathSwitch, cc_MathSwitch) -> [(DisplayMathSwitch, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | cc_MathSwitch -> [(MathSwitch, Sedlexing.Utf8.lexeme buf, locate buf)]
   | eof -> [(EOF, Sedlexing.Utf8.lexeme buf, locate buf)]
   | _ -> Fmt.(raise_failwithf (locate buf) "Latex_tokens.token: unrecognized")
