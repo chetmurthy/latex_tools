@@ -108,7 +108,7 @@ let token buf =
   | Plus (cc_Spacer | cc_EndOfLine) -> [(MergedSpacer, Sedlexing.Utf8.lexeme buf, locate buf)]
  *)
   | spacer -> [(MergedSpacer, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | (cc_Comment, Plus(Sub(any, cc_EndOfLine))) -> [(Comment, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_Comment, Star(Sub(any, cc_EndOfLine))) -> [(Comment, Sedlexing.Utf8.lexeme buf, locate buf)]
   | (cc_Escape, (cc_Letter, Star (cc_Letter|'*'))) ->
      let lexeme = Sedlexing.Utf8.lexeme buf in
      let len = String.length lexeme in
