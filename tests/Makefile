@@ -6,7 +6,7 @@ PACKAGES := $(PACKAGES),latex_tools,ounit2,pa_ppx.utils,latex_tools.link,pa_ppx.
 
 ML= \
 	latex_tools_test.ml \
-	latex_tokens_test.ml \
+	latex_token_test.ml \
 
 ALLSRC=$(ML)
 ALLPACKAGES=$(PACKAGES)
