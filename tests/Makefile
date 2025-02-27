@@ -35,7 +35,7 @@ clean::
 
 tokens.ocaml-output:: latex_token_test.exe
 	rm -rf token-fixtures.ocaml-out && mkdir token-fixtures.ocaml-out
-	for f in token-fixtures/*.tex; do ./latex_token_test.exe $$f > token-fixtures.ocaml-out/`basename $$f` ; done
+	for f in token-fixtures/*.tex; do echo $$f ; ./latex_token_test.exe $$f > token-fixtures.ocaml-out/`basename $$f` ; done
 clean::
 	rm -rf *.cm* _build *.exe token-fixtures.python-out
 

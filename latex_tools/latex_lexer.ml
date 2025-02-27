@@ -30,6 +30,8 @@ _
 let cc_Escape = [%sedlex.regexp? "\\"]
 let cc_GroupBegin = [%sedlex.regexp? "{"]
 let cc_GroupEnd = [%sedlex.regexp? "}"]
+let cc_BracketBegin = [%sedlex.regexp? "["]
+let cc_BracketEnd = [%sedlex.regexp? "]"]
 let cc_MathSwitch = [%sedlex.regexp? "$"]
 let cc_Alignment = [%sedlex.regexp? "&"]
 let cc_EndOfLine = [%sedlex.regexp? '\n' | '\r']
@@ -41,6 +43,9 @@ let cc_Spacer = [%sedlex.regexp? ' ' | '\t']
 let cc_Letter = [%sedlex.regexp? 'A'..'Z' | 'a'..'z' | tr8876_ident_char]
 let cc_Active = [%sedlex.regexp? '~']
 let cc_Comment = [%sedlex.regexp? '%']
+
+let text_char = [%sedlex.regexp? Sub(
+                      any, (cc_Escape | cc_GroupBegin | cc_GroupEnd | cc_MathSwitch | cc_BracketBegin| cc_BracketEnd | cc_Comment)) ]
 
 (*
 
@@ -85,11 +90,19 @@ let locate buf =
 
 let token buf =
   match%sedlex buf with
-  | Plus (cc_Spacer | cc_EndOfLine) -> (MergedSpacer, Sedlexing.Utf8.lexeme buf, locate buf)
-  | (cc_Letter, Star (cc_Letter|'*')) -> (CommandName, Sedlexing.Utf8.lexeme buf, locate buf)
-  | (cc_Comment, Plus(Sub(any, cc_EndOfLine))) -> (Comment, Sedlexing.Utf8.lexeme buf, locate buf)
-  | cc_Escape -> (Escape, Sedlexing.Utf8.lexeme buf, locate buf)
-  | cc_GroupBegin -> (GroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)
-  | cc_GroupEnd -> (GroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)
-  | eof -> (EOF, Sedlexing.Utf8.lexeme buf, locate buf)
+  | Plus (cc_Spacer | cc_EndOfLine) -> [(MergedSpacer, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_Comment, Plus(Sub(any, cc_EndOfLine))) -> [(Comment, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_Escape, (cc_Letter, Star (cc_Letter|'*'))) ->
+     let lexeme = Sedlexing.Utf8.lexeme buf in
+     let len = String.length lexeme in
+     let pos = locate buf in
+     [
+       (Escape, "\\", pos)
+     ; (CommandName, String.sub lexeme 1 (len - 1), pos)
+     ]
+  | cc_Escape -> [(Escape, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | cc_GroupBegin -> [(GroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | cc_GroupEnd -> [(GroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | Plus(text_char) -> [(Text, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | eof -> [(EOF, Sedlexing.Utf8.lexeme buf, locate buf)]
   | _ -> Fmt.(raise_failwithf (locate buf) "Latex_tokens.token: unrecognized")
