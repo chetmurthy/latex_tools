@@ -57,7 +57,7 @@ let text_char = [%sedlex.regexp? Sub(
 
 let ascii_printable = [%sedlex.regexp?
  '0'..'9' | 'a'..'z' | 'A'..'Z'
-|'!'|'"'|'#'|'$'|'%'|'&'|'\\'|'('|')'|'*'|'+'|','|'-'|'.'|'/'|':'|';'|'<'|'='|'>'|'?'|'@'|'['|']'|'^'|'_'|'`'|'{'|'|'|'}'|'~'|' '|'\t'|'\n'|'\r'|'\x0b'|'\x0c' ]
+|'!'|'"'|'#'|'$'|'%'|'&'|'\''|'('|')'|'*'|'+'|','|'-'|'.'|'/'|':'|';'|'<'|'='|'>'|'?'|'@'|'['|'\\'|']'|'^'|'_'|'`'|'{'|'|'|'}'|'~'|' '|'\t'|'\n'|'\r'|'\x0b'|'\x0c' ]
 
 let ascii_letters = [%sedlex.regexp? 'a'..'z' | 'A'..'Z' ]
 
@@ -146,7 +146,7 @@ let token buf =
 (*
   | (Sub(text_char, (cc_Spacer | cc_EndOfLine)), Star(text_char)) -> [(Text, Sedlexing.Utf8.lexeme buf, locate buf)]
  *)
-  | (Opt spacer, Sub(text_char, (cc_Spacer | cc_EndOfLine)), Star(text_char)) -> [(Text, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (Sub(text_char, (cc_Spacer | cc_EndOfLine)), Star(text_char)) -> [(Text, Sedlexing.Utf8.lexeme buf, locate buf)]
   | (cc_MathSwitch, cc_MathSwitch) -> [(DisplayMathSwitch, Sedlexing.Utf8.lexeme buf, locate buf)]
   | cc_MathSwitch -> [(MathSwitch, Sedlexing.Utf8.lexeme buf, locate buf)]
   | eof -> [(EOF, Sedlexing.Utf8.lexeme buf, locate buf)]
