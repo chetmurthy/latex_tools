@@ -4,7 +4,7 @@ open Latex_tokens
 
 module StripSpaceAfterBeginEnd :
   sig
-    type t = [%import: Latex_tokens.t][@@deriving show { with_path = false }]
+    type t = [%import: Latex_tokens.t][@@deriving show { with_path = false }, eq]
 
     val pp_tex : Format.formatter -> 'a token -> unit
     val list : t Latex_tokens.token list -> t token list
@@ -12,7 +12,7 @@ module StripSpaceAfterBeginEnd :
   end
 module MarkEnvironmentBeginEnd :
   sig
-    type t = [ Latex_tokens.t | `EnvironBegin of string | `EnvironEnd of string ][@@deriving show { with_path = false }]
+    type t = [ Latex_tokens.t | `EnvironBegin of string | `EnvironEnd of string ][@@deriving show { with_path = false }, eq]
 
     val pp_tex : Format.formatter -> t token -> unit
     val list :
@@ -23,7 +23,7 @@ module MarkEnvironmentBeginEnd :
 module CoalesceEnvironments :
   sig
     module EM = MarkEnvironmentBeginEnd
-    type t = [ EM.t | `Environment of string * t token list ][@@deriving show { with_path = false }]
+    type t = [ EM.t | `Environment of string * t token list ][@@deriving show { with_path = false }, eq]
     val pp_tex : t token Fmt.t
     val list : EM.t token list -> t token list
     val stream :

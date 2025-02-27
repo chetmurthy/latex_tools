@@ -4,6 +4,7 @@ open Pa_ppx_utils
 
 open Latex_tokens
 
+type loc = [%import: Latex_tokens.loc]
 type t = [%import: Latex_tokens.t]
 type 'a token = [%import: 'a Latex_tokens.token]
 

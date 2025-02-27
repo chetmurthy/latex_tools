@@ -27,9 +27,12 @@ type t =
   | `PunctuationCommandName
   | `SizeCommand
   | `Spacer
-  | `EOF ] [@@deriving show { with_path = false }]
+  | `EOF ] [@@deriving show { with_path = false }, eq]
 
-type 'a token = { it : 'a ; text :  string ; loc : Pp_MLast.Ploc.t }[@@deriving show { with_path = false }]
+type loc = Pp_MLast.Ploc.t[@@deriving show { with_path = false }]
+let equal_loc (_ : loc) (_ : loc) = true
+
+type 'a token = { it : 'a ; text :  string ; loc : loc }[@@deriving show { with_path = false }, eq]
 
 let pp_tex pps t = Fmt.(pf pps "%s" t.text)
 

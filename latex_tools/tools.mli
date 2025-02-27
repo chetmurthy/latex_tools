@@ -1,5 +1,6 @@
 (**pp -syntax camlp5o -package camlp5,pa_ppx.base,pa_ppx.utils,pa_ppx.deriving_plugins.show,pa_ppx.import,sedlex *)
 
+type loc = [%import: Latex_tokens.loc]
 type t = [%import: Latex_tokens.t]
 type 'a token = [%import: 'a Latex_tokens.token]
 

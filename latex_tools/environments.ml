@@ -13,7 +13,7 @@ open Latex_tokens
 
 module StripSpaceAfterBeginEnd = struct
 
-type t = [%import: Latex_tokens.t][@@deriving show { with_path = false }]
+type t = [%import: Latex_tokens.t][@@deriving show { with_path = false }, eq]
 
 let pp_tex = Latex_tokens.pp_tex
 
@@ -64,7 +64,7 @@ let stream strm =
 end
 
 module MarkEnvironmentBeginEnd = struct
-type t = [ Latex_tokens.t | `EnvironBegin of string | `EnvironEnd of string ][@@deriving show { with_path = false }]
+type t = [ Latex_tokens.t | `EnvironBegin of string | `EnvironEnd of string ][@@deriving show { with_path = false }, eq]
 
 let pp_tex pps (t : t token) =
   match t with
@@ -123,7 +123,7 @@ end
 
 module CoalesceEnvironments = struct
 module EM = MarkEnvironmentBeginEnd
-type t = [ EM.t | `Environment of string * t token list ][@@deriving show { with_path = false }]
+type t = [ EM.t | `Environment of string * t token list ][@@deriving show { with_path = false }, eq]
 
 let rec pp_tex pps (t : t token) =
   match t with
