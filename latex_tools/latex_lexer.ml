@@ -82,7 +82,10 @@ let cc_Other = [%sedlex.regexp? Sub(ascii_printable, (ascii_letters | other_disa
  *)
 
 
-
+let spacer = [%sedlex.regexp? ((Star (cc_Spacer), cc_EndOfLine, Star (cc_Spacer))
+     | (cc_EndOfLine, Star (cc_Spacer))
+     | Plus (cc_Spacer)
+    )]
 
 let locate buf =
   let (spos, epos) = Sedlexing.lexing_positions buf in
@@ -93,10 +96,7 @@ let token buf =
 (*
   | Plus (cc_Spacer | cc_EndOfLine) -> [(MergedSpacer, Sedlexing.Utf8.lexeme buf, locate buf)]
  *)
-  | ((Star (cc_Spacer), cc_EndOfLine, Star (cc_Spacer))
-     | (cc_EndOfLine, Star (cc_Spacer))
-     | Plus (cc_Spacer)
-    ) -> [(MergedSpacer, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | spacer -> [(MergedSpacer, Sedlexing.Utf8.lexeme buf, locate buf)]
   | (cc_Comment, Plus(Sub(any, cc_EndOfLine))) -> [(Comment, Sedlexing.Utf8.lexeme buf, locate buf)]
   | (cc_Escape, (cc_Letter, Star (cc_Letter|'*'))) ->
      let lexeme = Sedlexing.Utf8.lexeme buf in
@@ -109,6 +109,11 @@ let token buf =
   | cc_Escape -> [(Escape, Sedlexing.Utf8.lexeme buf, locate buf)]
   | cc_GroupBegin -> [(GroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
   | cc_GroupEnd -> [(GroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | cc_BracketBegin -> [(BracketBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | cc_BracketEnd -> [(BracketEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
+(*
   | (Sub(text_char, (cc_Spacer | cc_EndOfLine)), Star(text_char)) -> [(Text, Sedlexing.Utf8.lexeme buf, locate buf)]
+ *)
+  | (Opt spacer, Sub(text_char, (cc_Spacer | cc_EndOfLine)), Star(text_char)) -> [(Text, Sedlexing.Utf8.lexeme buf, locate buf)]
   | eof -> [(EOF, Sedlexing.Utf8.lexeme buf, locate buf)]
   | _ -> Fmt.(raise_failwithf (locate buf) "Latex_tokens.token: unrecognized")
