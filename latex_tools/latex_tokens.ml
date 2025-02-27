@@ -1,6 +1,7 @@
-(**pp -syntax camlp5o -package camlp5,pa_ppx.base,pa_ppx.deriving_plugins.show *)
+(**pp -syntax camlp5o -package camlp5,pa_ppx.base,pa_ppx.utils,pa_ppx.deriving_plugins.show *)
 
 open Pa_ppx_base
+open Pa_ppx_utils
 open Ppxutil
 
 type t =
@@ -31,3 +32,17 @@ type t =
 type 'a token = { it : 'a ; text :  string ; loc : Ploc.t }
 
 let pp_tex pps t = Fmt.(pf pps "%s" t.text)
+
+let list_of_tokens token lexbuf =
+  let rec lrec acc =
+    match token lexbuf with
+      [{it=`EOF}] -> List.rev acc
+    | t -> lrec ((List.rev t) @ acc)
+  in lrec []
+
+let stream_of_tokens token lexbuf =
+  let rec lrec () =
+    match token lexbuf with
+      [{it=`EOF}] -> [< >]
+    | l -> [< Std.stream_of_list l ; lrec () >]
+  in lrec ()
