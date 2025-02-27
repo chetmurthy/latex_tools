@@ -107,47 +107,47 @@ let token buf =
 (*
   | Plus (cc_Spacer | cc_EndOfLine) -> [(MergedSpacer, Sedlexing.Utf8.lexeme buf, locate buf)]
  *)
-  | spacer -> [(MergedSpacer, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | (cc_Comment, Star(Sub(any, cc_EndOfLine))) -> [(Comment, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | spacer -> [(`MergedSpacer, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_Comment, Star(Sub(any, cc_EndOfLine))) -> [(`Comment, Sedlexing.Utf8.lexeme buf, locate buf)]
   | (cc_Escape, (cc_Letter, Star (cc_Letter|'*'))) ->
      let lexeme = Sedlexing.Utf8.lexeme buf in
      let len = String.length lexeme in
      let pos = locate buf in
      [
-       (Escape, "\\", pos)
-     ; (CommandName, String.sub lexeme 1 (len - 1), pos)
+       (`Escape, "\\", pos)
+     ; (`CommandName, String.sub lexeme 1 (len - 1), pos)
      ]
 
   | (cc_Escape, 
      (cc_Escape | cc_GroupBegin | cc_GroupEnd | cc_MathSwitch |
       cc_Alignment | cc_EndOfLine | cc_Macro| cc_Superscript |
       cc_Subscript | cc_Spacer| cc_Active | cc_Comment | cc_Other)) ->
-     [(EscapedComment, Sedlexing.Utf8.lexeme buf, locate buf)]
+     [(`EscapedComment, Sedlexing.Utf8.lexeme buf, locate buf)]
 
-  | (cc_Escape, cc_BracketBegin) -> [(DisplayMathGroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | (cc_Escape, cc_BracketEnd) -> [(DisplayMathGroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | (cc_Escape, cc_ParenBegin) -> [(MathGroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | (cc_Escape, cc_ParenEnd) -> [(MathGroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_Escape, cc_BracketBegin) -> [(`DisplayMathGroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_Escape, cc_BracketEnd) -> [(`DisplayMathGroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_Escape, cc_ParenBegin) -> [(`MathGroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_Escape, cc_ParenEnd) -> [(`MathGroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
 
   | (cc_Escape, punctuation_commands) ->
      let lexeme = Sedlexing.Utf8.lexeme buf in
      let len = String.length lexeme in
      let pos = locate buf in
      [
-       (Escape, "\\", pos)
-     ; (PunctuationCommandName, String.sub lexeme 1 (len - 1), pos)
+       (`Escape, "\\", pos)
+     ; (`PunctuationCommandName, String.sub lexeme 1 (len - 1), pos)
      ]
 
-  | cc_Escape -> [(Escape, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | cc_GroupBegin -> [(GroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | cc_GroupEnd -> [(GroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | cc_BracketBegin -> [(BracketBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | cc_BracketEnd -> [(BracketEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | cc_Escape -> [(`Escape, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | cc_GroupBegin -> [(`GroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | cc_GroupEnd -> [(`GroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | cc_BracketBegin -> [(`BracketBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | cc_BracketEnd -> [(`BracketEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
 (*
   | (Sub(text_char, (cc_Spacer | cc_EndOfLine)), Star(text_char)) -> [(Text, Sedlexing.Utf8.lexeme buf, locate buf)]
  *)
-  | (Sub(text_char, (cc_Spacer | cc_EndOfLine)), Star(text_char)) -> [(Text, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | (cc_MathSwitch, cc_MathSwitch) -> [(DisplayMathSwitch, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | cc_MathSwitch -> [(MathSwitch, Sedlexing.Utf8.lexeme buf, locate buf)]
-  | eof -> [(EOF, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (Sub(text_char, (cc_Spacer | cc_EndOfLine)), Star(text_char)) -> [(`Text, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_MathSwitch, cc_MathSwitch) -> [(`DisplayMathSwitch, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | cc_MathSwitch -> [(`MathSwitch, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | eof -> [(`EOF, Sedlexing.Utf8.lexeme buf, locate buf)]
   | _ -> Fmt.(raise_failwithf (locate buf) "Latex_tokens.token: unrecognized")

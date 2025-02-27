@@ -33,12 +33,14 @@ let python_quote s =
 let list_of_tokens_eof lexbuf =
   let rec lrec acc =
     match token lexbuf with
-      [(EOF, _, _)] -> List.rev acc
+      [(`EOF, _, _)] -> List.rev acc
     | t -> lrec ((List.rev t) @ acc)
   in lrec []
 
 let fmt1 (t,s,_) =
-  let s = Fmt.(str "(%a, %a)@." string (python_quote s) (quote ~mark:"'" pp) t) in
+  let t_string = Fmt.(str "%a" pp t) in
+  let t_string = String.sub t_string 1 ((String.length t_string) - 1) in
+  let s = Fmt.(str "(%a, %a)@." string (python_quote s) (quote ~mark:"'" string) t_string) in
   [%subst {|\n|} / "" / g m] s
 
 let latex_tokens ~roundtrip fname =
