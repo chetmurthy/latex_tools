@@ -38,8 +38,7 @@ let fmt1 {it=t;text=s} =
   [%subst {|\n|} / "" / g m] s
 
 let latex_tokens ~roundtrip fname =
-  let lexbuf = Sedlexing.Utf8.from_channel (open_in fname) in
-  let toks = list_of_tokens Latex_lexer.token lexbuf in
+  let toks = Tools.list_of_channel ~fname (open_in fname) in
   if roundtrip then
     toks |> List.iter (fun {text=s} -> print_string s)
   else
@@ -53,8 +52,7 @@ let stream_map f strm =
   in srec strm
 
 let latex_tokens' ~roundtrip fname =
-  let lexbuf = Sedlexing.Utf8.from_channel (open_in fname) in
-  let strm = stream_of_tokens Latex_lexer.token lexbuf in
+  let strm = Tools.stream_of_channel ~fname (open_in fname) in
   if roundtrip then
     strm |> Stream.iter (fun {text=s} -> print_string s)
   else
