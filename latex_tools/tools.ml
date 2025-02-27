@@ -1,5 +1,7 @@
 (**pp -syntax camlp5o -package camlp5,pa_ppx.base,pa_ppx.utils,pa_ppx.deriving_plugins.show,pa_ppx.import,sedlex *)
 
+open Pa_ppx_utils
+
 open Latex_tokens
 
 type t = [%import: Latex_tokens.t]
@@ -26,3 +28,6 @@ let list_of_channel ?fname ic : t token list =
      None -> ()
    | Some f -> Sedlexing.set_filename lexbuf f) ;
   list_of_tokens Latex_lexer.token lexbuf
+
+let list_to_tex pp1 l = List.map pp1 l
+let stream_to_tex pp1 l = Std.stream_map pp1 l

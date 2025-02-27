@@ -45,20 +45,15 @@ let latex_tokens ~roundtrip fname =
     let l = List.map fmt1 toks in
     Fmt.(pf stdout "%a@." (list ~sep:(const string "\n") string) l)
 
-let stream_map f strm =
-  let rec srec = parser
-    [< 't ; strm >] -> [< 'f t ; srec strm >]
-  | [< >] -> [< >]
-  in srec strm
-
 let latex_tokens' ~roundtrip fname =
   let strm = Tools.stream_of_channel ~fname (open_in fname) in
   if roundtrip then
     strm |> Stream.iter (fun {text=s} -> print_string s)
   else
-    let strm = stream_map fmt1 strm in
-    let l = Std.list_of_stream strm in
-    Fmt.(pf stdout "%a@." (list ~sep:(const string "\n") string) l)
+    let strm = Std.stream_map fmt1 strm in
+    strm |> Stream.iter (fun s ->
+                Fmt.(pf stdout "%a\n" string s)) ;
+    Fmt.(pf stdout "@.")
 
 let _ = 
 if not !Sys.interactive then
