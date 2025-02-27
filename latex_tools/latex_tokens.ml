@@ -27,3 +27,5 @@ type t =
   | `SizeCommand
   | `Spacer
   | `EOF ] [@@deriving show { with_path = false }]
+
+type t_token = (t * string * Ploc.t)
