@@ -32,6 +32,8 @@ let cc_GroupBegin = [%sedlex.regexp? "{"]
 let cc_GroupEnd = [%sedlex.regexp? "}"]
 let cc_BracketBegin = [%sedlex.regexp? "["]
 let cc_BracketEnd = [%sedlex.regexp? "]"]
+let cc_ParenBegin = [%sedlex.regexp? "("]
+let cc_ParenEnd = [%sedlex.regexp? ")"]
 let cc_MathSwitch = [%sedlex.regexp? "$"]
 let cc_Alignment = [%sedlex.regexp? "&"]
 let cc_EndOfLine = [%sedlex.regexp? '\n' | '\r']
@@ -106,6 +108,18 @@ let token buf =
        (Escape, "\\", pos)
      ; (CommandName, String.sub lexeme 1 (len - 1), pos)
      ]
+
+  | (cc_Escape, 
+     (cc_Escape | cc_GroupBegin | cc_GroupEnd | cc_MathSwitch |
+      cc_Alignment | cc_EndOfLine | cc_Macro| cc_Superscript |
+      cc_Subscript | cc_Spacer| cc_Active | cc_Comment | cc_Other)) ->
+     [(EscapedComment, Sedlexing.Utf8.lexeme buf, locate buf)]
+
+  | (cc_Escape, cc_BracketBegin) -> [(DisplayMathGroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_Escape, cc_BracketEnd) -> [(DisplayMathGroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_Escape, cc_ParenBegin) -> [(MathGroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_Escape, cc_ParenEnd) -> [(MathGroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
+
   | cc_Escape -> [(Escape, Sedlexing.Utf8.lexeme buf, locate buf)]
   | cc_GroupBegin -> [(GroupBegin, Sedlexing.Utf8.lexeme buf, locate buf)]
   | cc_GroupEnd -> [(GroupEnd, Sedlexing.Utf8.lexeme buf, locate buf)]
@@ -115,5 +129,6 @@ let token buf =
   | (Sub(text_char, (cc_Spacer | cc_EndOfLine)), Star(text_char)) -> [(Text, Sedlexing.Utf8.lexeme buf, locate buf)]
  *)
   | (Opt spacer, Sub(text_char, (cc_Spacer | cc_EndOfLine)), Star(text_char)) -> [(Text, Sedlexing.Utf8.lexeme buf, locate buf)]
+  | (cc_MathSwitch, cc_MathSwitch) -> [(DisplayMathSwitch, Sedlexing.Utf8.lexeme buf, locate buf)]
   | eof -> [(EOF, Sedlexing.Utf8.lexeme buf, locate buf)]
   | _ -> Fmt.(raise_failwithf (locate buf) "Latex_tokens.token: unrecognized")
