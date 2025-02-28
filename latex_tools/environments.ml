@@ -153,89 +153,64 @@ let rec pp_tex pps (t : t token) =
   | {it=`EnvironEnd s} -> Fmt.(pf pps "\\end{%s}" s) ;
   | {text=s} -> Fmt.(pf pps "%s" s)
 
+
 let list (l : EM.t token list) : t token list =
-  let rec conv (rev_lhs : t token list) stk = function
-      (t: EM.t token)::tl ->
-       begin
-         match (stk, t) with
-           (((name, begin_t), rev_cl)::stk, {it=`EnvironEnd name'}) when name = name' ->
-            let ttok_cl = List.rev rev_cl in
-            let ttok_text = Fmt.(str "%s%a%s" begin_t.text (list ~sep:nop pp_tex) ttok_cl t.text) in
-            let ttok_loc = Ploc.encl begin_t.loc t.loc in
-            let ttok = {it=`Environment(name, ttok_cl); text=ttok_text; loc = ttok_loc} in
-            let (rev_lhs, stk) = match (rev_lhs, stk) with
-                (rev_lhs, ((name, begin_t), rev_cl)::stk) ->
-                 (rev_lhs, ((name, begin_t), (ttok::rev_cl))::stk)
-              | (rev_lhs, []) ->
-                 (ttok::rev_lhs, []) in
-            conv rev_lhs stk tl
+  let rec conv (rev_lhs : t token list) = function
+      ({it=`EnvironEnd name'} as tok)::tl ->
+      Fmt.(raise_failwithf tok.loc "CoalesceEnvironments: top-level end-environment %s without matching begin-environment" name')
+    | ({it=`EnvironBegin name} as begin_tok)::tl ->
+       let (c, tl) = conv_children (name,begin_tok) [] tl in
+       conv (c::rev_lhs) tl
 
-         | (((name, begin_t), rev_cl)::stk, {it=`EnvironEnd name'}) ->
-            Fmt.(raise_failwithf t.loc "CoalesceEnvironments: end-environment %s without matching begin-environment" name')
+    | t::tl -> conv ((t : EM.t token :> t token)::rev_lhs) tl
+    | [] -> List.rev rev_lhs
 
-         | ([], {it=`EnvironEnd name'}) ->
-            Fmt.(raise_failwithf t.loc "CoalesceEnvironments: naked end-environment %s without matching begin-environment" name')
+  and conv_children (name, begin_tok) rev_lhs = function
+      ({it=`EnvironEnd name'} as end_tok)::tl when name=name' ->
+       let ttok_cl = List.rev rev_lhs in
+       let ttok_text = Fmt.(str "%s%a%s" begin_tok.text (list ~sep:nop pp_tex) ttok_cl end_tok.text) in
+       let ttok_loc = Ploc.encl begin_tok.loc end_tok.loc in
+       let ttok = {it=`Environment(name, ttok_cl); text=ttok_text; loc = ttok_loc} in
+       (ttok, tl)
 
-         | (stk, {it=`EnvironBegin name}) ->
-            conv rev_lhs (((name, t), [])::stk) tl
+    | ({it=`EnvironEnd name'} as tok)::tl ->
+      Fmt.(raise_failwithf tok.loc "CoalesceEnvironments: end-environment %s when looking for end-environment %s" name' name)
 
-         | (((name, begin_t), rev_cl)::stk, t) ->
-            conv rev_lhs (((name, begin_t), ((t : EM.t token :> t token)::rev_cl))::stk) tl
+    | ({it=`EnvironBegin name'} as begin_tok')::tl ->
+       let (c, tl) = conv_children (name', begin_tok') [] tl in
+       conv_children (name, begin_tok) (c::rev_lhs) tl
 
-         | (stk, t) ->
-            conv ((t : EM.t token :> t token)::rev_lhs) stk tl
-       end
+    | t::tl -> conv_children (name, begin_tok) ((t : EM.t token :> t token)::rev_lhs) tl
+    | [] -> Fmt.(failwithf "CoalesceEnvironments: EOF when looking for end-environment %s" name)
 
-    | [] ->
-       if stk <> [] then begin
-         let envnames = List.map (fun ((name, _), _) -> name) stk in
-         Fmt.(failwithf "CoalsceEnvironments: at EOF, stack of unmatched environments was nonempty: [%a]"
-              (list ~sep:(const string " ") string) envnames)
-         end ;
-       List.rev rev_lhs
-  in conv ([] : t token list) [] l
+  in conv [] l
 
-let stream (strm : EM.t token Stream.t) : t token Stream.t =
-  let rec conv stk = parser
-    [< '(t : EM.t token) ; strm >] ->
-       begin
-         match (stk, t) with
-           (((name, begin_t), rev_cl)::stk, {it=`EnvironEnd name'}) when name = name' ->
-            let ttok_cl = List.rev rev_cl in
-            let ttok_text = Fmt.(str "%s%a%s" begin_t.text (list ~sep:nop pp_tex) ttok_cl t.text) in
-            let ttok_loc = Ploc.encl begin_t.loc t.loc in
-            let ttok = {it=`Environment(name, ttok_cl); text=ttok_text; loc = ttok_loc} in
-            begin
-              match stk with
-                ((name, begin_t), rev_cl)::stk ->
-                 conv (((name, begin_t), (ttok::rev_cl))::stk) strm
-              | [] ->
-                 [< 'ttok ; conv [] strm >]
-            end
 
-         | (((name, begin_t), rev_cl)::stk, {it=`EnvironEnd name'}) ->
-            Fmt.(raise_failwithf t.loc "CoalesceEnvironments: end-environment %s without matching begin-environment" name')
+let stream strm =
+  let rec conv  = parser
+      [< '({it=`EnvironEnd name'} as tok) >] ->
+      Fmt.(raise_failwithf tok.loc "CoalesceEnvironments: top-level end-environment %s without matching begin-environment" name')
+    | [< '({it=`EnvironBegin name} as begin_tok) ; c = conv_children (name,begin_tok) [] ; strm >] ->
+       [< 'c ; conv strm >]
+    | [< 't ; strm >] -> [< '(t : EM.t token :> t token) ; conv strm >]
+    | [< >] -> [< >]
 
-         | ([], {it=`EnvironEnd name'}) ->
-            Fmt.(raise_failwithf t.loc "CoalesceEnvironments: naked end-environment %s without matching begin-environment" name')
+  and conv_children (name, begin_tok) rev_lhs = parser
+      [< '({it=`EnvironEnd name'} as end_tok) when name=name' >] ->
+       let ttok_cl = List.rev rev_lhs in
+       let ttok_text = Fmt.(str "%s%a%s" begin_tok.text (list ~sep:nop pp_tex) ttok_cl end_tok.text) in
+       let ttok_loc = Ploc.encl begin_tok.loc end_tok.loc in
+       {it=`Environment(name, ttok_cl); text=ttok_text; loc = ttok_loc}
 
-         | (stk, {it=`EnvironBegin name}) ->
-            conv (((name, t), [])::stk) strm
+    | [< '({it=`EnvironEnd name'} as tok) >] ->
+       Fmt.(raise_failwithf tok.loc "CoalesceEnvironments: end-environment %s when looking for end-environment %s" name' name)
 
-         | (((name, begin_t), rev_cl)::stk, t) ->
-            conv (((name, begin_t), ((t : EM.t token :> t token)::rev_cl))::stk) strm
+    | [< '({it=`EnvironBegin name'} as begin_tok') ; c = conv_children (name', begin_tok') [] ; strm >] ->
+       conv_children (name, begin_tok) (c::rev_lhs) strm
 
-         | (stk, t) ->
-            [< '(t : EM.t token :> t token) ; conv stk strm >]
-       end
+    | [< 't ; strm >] -> conv_children (name, begin_tok) ((t : EM.t token :> t token)::rev_lhs) strm
+    | [< >] -> Fmt.(failwithf "CoalesceEnvironments: EOF when looking for end-environment %s" name)
 
-    | [< >] ->
-       if stk <> [] then begin
-         let envnames = List.map (fun ((name, _), _) -> name) stk in
-         Fmt.(failwithf "CoalsceEnvironments: at EOF, stack of unmatched environments was nonempty: [%a]"
-              (list ~sep:(const string " ") string) envnames)
-         end ;
-       [< >]
-  in conv [] strm
+  in conv strm
 
 end
