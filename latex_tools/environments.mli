@@ -16,9 +16,9 @@ module MarkEnvironmentBeginEnd :
 
     val pp_tex : Format.formatter -> t token -> unit
     val list :
-      Latex_tokens.t token list -> t token list
+      ?environs:string list -> Latex_tokens.t token list -> t token list
     val stream :
-      Latex_tokens.t token Stream.t -> t token Stream.t
+      ?environs:string list -> Latex_tokens.t token Stream.t -> t token Stream.t
   end
 module CoalesceEnvironments :
   sig

@@ -74,14 +74,15 @@ let pp_tex pps (t : t token) =
   | {it=`EnvironEnd s} -> Fmt.(pf pps "\\end{%s}" s) ;
   | {text=s} -> Fmt.(pf pps "%s" s)
 
-let list (l : Latex_tokens.t token list) =
+let list ?(environs=[]) (l : Latex_tokens.t token list) =
+  let name_pred n = environs = [] || List.mem n environs in
   let rec conv (rev_lhs : t token list) = function
       ({it=`Escape} as tok1)
       ::({it=`CommandName; text="begin"} as tok2)
       ::({it=`GroupBegin} as tok3)
       ::({it=`Text} as tok4)
       ::({it=`GroupEnd} as tok5)
-      ::tl
+      ::tl when name_pred tok4.text
       ->
       let loc = Ploc.encl tok1.loc tok5.loc in
       let t : t token = {it=`EnvironBegin tok4.text; text=tok1.text^tok2.text^tok3.text^tok4.text^tok5.text; loc} in
@@ -92,7 +93,7 @@ let list (l : Latex_tokens.t token list) =
       ::({it=`GroupBegin} as tok3)
       ::({it=`Text} as tok4)
       ::({it=`GroupEnd} as tok5)
-      ::tl
+      ::tl when name_pred tok4.text
       ->
       let loc = Ploc.encl tok1.loc tok5.loc in
       let t : t token = {it=`EnvironEnd tok4.text; text=tok1.text^tok2.text^tok3.text^tok4.text^tok5.text; loc} in
@@ -103,13 +104,16 @@ let list (l : Latex_tokens.t token list) =
 
   in conv ([] : t token list) l
 
-let stream strm =
+let stream ?(environs=[]) strm =
+  let name_pred n = environs = [] || List.mem n environs in
   let rec conv = parser
     [< '{it=`Escape} as tok1; '{it=`CommandName; text="begin"} as tok2 ;
        '{it=`GroupBegin} as tok3; '{it=`Text} as tok4; '{it=`GroupEnd} as tok5 ; strm >] ->
-      let loc = Ploc.encl tok1.loc tok5.loc in
-      let t : t token = {it=`EnvironBegin tok4.text; text=tok1.text^tok2.text^tok3.text^tok4.text^tok5.text; loc} in
-      [< 't ; conv strm >]
+      if  name_pred tok4.text then
+        let loc = Ploc.encl tok1.loc tok5.loc in
+        let t : t token = {it=`EnvironBegin tok4.text; text=tok1.text^tok2.text^tok3.text^tok4.text^tok5.text; loc} in
+        [< 't ; conv strm >]
+      else [< 'tok1; 'tok2; 'tok3 ; 'tok4 ; 'tok5 ; conv strm >]
 
   | [< '{it=`Escape} as tok1; '{it=`CommandName; text="begin"} as tok2 ; '{it=`GroupBegin} as tok3; '{it=`Text} as tok4 ; strm >] ->
       [< 'tok1; 'tok2; 'tok3 ; 'tok4 ; conv strm >]
@@ -121,9 +125,11 @@ let stream strm =
 
   | [< '{it=`Escape} as tok1; '{it=`CommandName; text="end"} as tok2 ;
        '{it=`GroupBegin} as tok3; '{it=`Text} as tok4; '{it=`GroupEnd} as tok5 ; strm >] ->
+      if  name_pred tok4.text then
       let loc = Ploc.encl tok1.loc tok5.loc in
       let t : t token = {it=`EnvironEnd tok4.text; text=tok1.text^tok2.text^tok3.text^tok4.text^tok5.text; loc} in
       [< 't ; conv strm >]
+      else [< 'tok1; 'tok2; 'tok3 ; 'tok4 ; 'tok5 ; conv strm >]
 
   | [< '{it=`Escape} as tok1; '{it=`CommandName; text="end"} as tok2 ; '{it=`GroupBegin} as tok3; '{it=`Text} as tok4 ; strm >] ->
       [< 'tok1; 'tok2; 'tok3 ; 'tok4 ; conv strm >]

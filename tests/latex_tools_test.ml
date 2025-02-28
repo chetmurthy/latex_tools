@@ -120,6 +120,54 @@ let test_begin_end ~list ctxt =
        { it = `GroupEnd; text = "}"; loc = Ploc.dummy }]
       (doit {|\begin {a {}}|})
 
+let test_partial_begin_end ~list ctxt =
+  let cmp = [%eq: MarkEnvironmentBeginEnd.t token list] in
+  let printer = [%show: MarkEnvironmentBeginEnd.t token list] in
+  let doit_stream environs s =
+    s
+    |> Tools.stream_of_string
+    |> transduce "strip-spaces" StripSpaceAfterBeginEnd.stream
+    |> transduce "mark-environments" (MarkEnvironmentBeginEnd.stream ~environs)
+    |> Std.list_of_stream in
+  let doit_list environs s =
+    s
+    |> Tools.list_of_string
+    |> StripSpaceAfterBeginEnd.list
+    |> MarkEnvironmentBeginEnd.list ~environs in
+  let doit = if list then doit_list else doit_stream in
+  ()
+  ; assert_equal ~cmp ~printer
+      [{ it = `EnvironBegin ("foo"); text = "\\begin{foo}"; loc = Ploc.dummy };
+       { it = `Text; text = "..."; loc = Ploc.dummy };
+       { it = `EnvironEnd ("foo"); text = "\\end{foo}"; loc = Ploc.dummy }]
+      (doit [] {|\begin{foo}...\end{foo}|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "begin"; loc = Ploc.dummy };
+       { it = `GroupBegin; text = "{"; loc = Ploc.dummy };
+       { it = `Text; text = "foo"; loc = Ploc.dummy };
+       { it = `GroupEnd; text = "}"; loc = Ploc.dummy };
+       { it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "end"; loc = Ploc.dummy };
+       { it = `GroupBegin; text = "{"; loc = Ploc.dummy };
+       { it = `Text; text = "foo"; loc = Ploc.dummy };
+       { it = `GroupEnd; text = "}"; loc = Ploc.dummy }]
+      (doit ["bar"] {|\begin{foo}\end{foo}|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "begin"; loc = Ploc.dummy };
+       { it = `GroupBegin; text = "{"; loc = Ploc.dummy };
+       { it = `Text; text = "foo"; loc = Ploc.dummy };
+       { it = `GroupEnd; text = "}"; loc = Ploc.dummy };
+       { it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "end"; loc = Ploc.dummy };
+       { it = `GroupBegin; text = "{"; loc = Ploc.dummy };
+       { it = `Text; text = "foo"; loc = Ploc.dummy };
+       { it = `GroupEnd; text = "}"; loc = Ploc.dummy };
+       { it = `EnvironBegin ("bar"); text = "\\begin{bar}"; loc = Ploc.dummy };
+       { it = `EnvironEnd ("bar"); text = "\\end{bar}"; loc = Ploc.dummy }]
+      (doit ["bar"] {|\begin{foo}\end{foo}\begin{bar}\end{bar}|})
+
 let test_coalesce ~list ctxt =
   let cmp = [%eq: CoalesceEnvironments.t token list] in
   let printer = [%show: CoalesceEnvironments.t token list] in
@@ -268,6 +316,8 @@ let suite = "Test latex_tools" >::: [
     ; "strip spaces after begin/end (list)"   >:: test_strip_spaces ~list:true
     ; "marking begin/end of environments (stream)" >:: test_begin_end ~list:false
     ; "marking begin/end of environments (list)" >:: test_begin_end ~list:true
+    ; "partial marking begin/end of environments (stream)" >:: test_partial_begin_end ~list:false
+    ; "partial marking begin/end of environments (list)" >:: test_partial_begin_end ~list:true
     ; "coalesce begin/end of environments (stream)" >:: test_coalesce ~list:false
     ; "coalesce begin/end of environments (list)" >:: test_coalesce ~list:true
     ; "partial coalesce begin/end of environments (stream)" >:: test_partial_coalesce ~list:false
