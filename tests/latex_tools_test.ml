@@ -3,8 +3,8 @@ open OUnit2
 open Pa_ppx_testutils
 open Pa_ppx_utils
 open Latex_tools
+open Tools
 open Environments
-open Latex_tokens
 
 let printer s = s
 

@@ -3,8 +3,7 @@ open OUnit2
 open Pa_ppx_testutils
 open Pa_ppx_utils
 open Latex_tools
-open Latex_tokens
-open Latex_lexer
+open Tools
 
 Pa_ppx_runtime.Exceptions.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
