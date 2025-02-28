@@ -25,7 +25,7 @@ module CoalesceEnvironments :
     module EM = MarkEnvironmentBeginEnd
     type t = [ EM.t | `Environment of string * t token list ][@@deriving show { with_path = false }, eq]
     val pp_tex : t token Fmt.t
-    val list : EM.t token list -> t token list
+    val list : ?environs:string list -> EM.t token list -> t token list
     val stream :
-      EM.t token Stream.t -> t token Stream.t
+      ?environs:string list -> EM.t token Stream.t -> t token Stream.t
   end

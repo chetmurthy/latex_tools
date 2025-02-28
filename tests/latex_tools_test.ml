@@ -155,6 +155,61 @@ let test_coalesce ~list ctxt =
          text = "\\begin{foo}..\\begin{bar}..\\end{bar}..\\end{foo}"; loc = Ploc.dummy }]
       (doit {|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|})
 
+let test_partial_coalesce ~list ctxt =
+  let cmp = [%eq: CoalesceEnvironments.t token list] in
+  let printer = [%show: CoalesceEnvironments.t token list] in
+  let doit_stream environs s =
+    s
+    |> Tools.stream_of_string
+    |> StripSpaceAfterBeginEnd.stream
+    |> MarkEnvironmentBeginEnd.stream
+    |> CoalesceEnvironments.stream ~environs
+    |> Std.list_of_stream in
+  let doit_list environs s =
+    s
+    |> Tools.list_of_string
+    |> StripSpaceAfterBeginEnd.list
+    |> MarkEnvironmentBeginEnd.list
+    |> CoalesceEnvironments.list ~environs in
+  let doit = if list then doit_list else doit_stream in
+  ()
+  ; assert_equal ~cmp ~printer
+      [{ it = `EnvironBegin ("foo"); text = "\\begin{foo}"; loc = Ploc.dummy };
+       { it = `EnvironEnd ("foo"); text = "\\end{foo}"; loc = Ploc.dummy }]
+      (doit ["bar"] {|\begin{foo}\end{foo}|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `Environment (("foo", [])); text = "\\begin{foo}\\end{foo}"; loc = Ploc.dummy }]
+      (doit ["foo"] {|\begin{foo}\end{foo}|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `Environment (
+                  ("foo",
+                   [{ it = `Text; text = ".."; loc = Ploc.dummy };
+                    { it = `EnvironBegin ("bar"); text = "\\begin{bar}"; loc = Ploc.dummy };
+                    { it = `Text; text = ".."; loc = Ploc.dummy };
+                    { it = `EnvironEnd ("bar"); text = "\\end{bar}"; loc = Ploc.dummy };
+                    { it = `Text; text = ".."; loc = Ploc.dummy }])
+                );
+         text = "\\begin{foo}..\\begin{bar}..\\end{bar}..\\end{foo}"; loc = Ploc.dummy }
+      ]
+      (doit ["foo"] {|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `EnvironBegin ("foo"); text = "\\begin{foo}"; loc = Ploc.dummy };
+       { it = `Text; text = ".."; loc = Ploc.dummy };
+       { it = `Environment (("bar", [{ it = `Text; text = ".."; loc = Ploc.dummy }]));
+         text = "\\begin{bar}..\\end{bar}"; loc = Ploc.dummy };
+       { it = `Text; text = ".."; loc = Ploc.dummy };
+       { it = `EnvironEnd ("foo"); text = "\\end{foo}"; loc = Ploc.dummy }]
+      (doit ["bar"] {|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `Environment (("foo",
+                             [{ it = `Text; text = ".."; loc = Ploc.dummy };
+                              { it = `Environment (("bar", [{ it = `Text; text = ".."; loc = Ploc.dummy }]));
+                                text = "\\begin{bar}..\\end{bar}"; loc = Ploc.dummy };
+                              { it = `Text; text = ".."; loc = Ploc.dummy }]
+                ));
+         text = "\\begin{foo}..\\begin{bar}..\\end{bar}..\\end{foo}"; loc = Ploc.dummy }]
+      (doit [] {|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|})
+
 let extract_environments strm =
   let acc = ref [] in
   let open Visitors.CoalesceEnvironments in
@@ -215,6 +270,8 @@ let suite = "Test latex_tools" >::: [
     ; "marking begin/end of environments (list)" >:: test_begin_end ~list:true
     ; "coalesce begin/end of environments (stream)" >:: test_coalesce ~list:false
     ; "coalesce begin/end of environments (list)" >:: test_coalesce ~list:true
+    ; "partial coalesce begin/end of environments (stream)" >:: test_partial_coalesce ~list:false
+    ; "partial coalesce begin/end of environments (list)" >:: test_partial_coalesce ~list:true
     ; "extract environments (stream)" >:: test_extract_environments ~list:false
     ; "extract environments (list)" >:: test_extract_environments ~list:true
     ]
