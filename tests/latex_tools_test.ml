@@ -14,7 +14,7 @@ let test_tokens ctxt =
 
 let printer s = Fmt.(str "<<%s>>" s)
 
-let test_strip_spaces ctxt =
+let test_strip_spaces ~list ctxt =
   let doit_stream s =
     s
     |> Tools.stream_of_string
@@ -25,26 +25,21 @@ let test_strip_spaces ctxt =
     |> Tools.list_of_string
     |> StripSpaceAfterBeginEnd.list
     |> list_to_string pp_tex in
+  let doit = if list then doit_list else doit_stream in
 
   ()
   ; assert_equal ~printer
       {|\begin{foo}\end{foo}|}
-      (doit_stream {|\begin{foo}\end{foo}|})
-  ; assert_equal ~printer
-      {|\begin{foo}\end{foo}|}
-      (doit_list {|\begin{foo}\end{foo}|})
+      (doit {|\begin{foo}\end{foo}|})
   ; assert_equal ~printer
       {|\begin{foo}\end{foo} 
 |}
-      (doit_stream {|\begin {foo}\end
+      (doit {|\begin {foo}\end
 {foo} 
 |})
   ; assert_equal ~printer
-      {|\begin{foo}\end{foo} 
-|}
-      (doit_list {|\begin {foo}\end
-{foo} 
-|})
+      {|\argle{foo}|}
+      (doit {|\argle{foo}|})
 
 let test_begin_end ctxt =
   let cmp = [%eq: MarkEnvironmentBeginEnd.t token list] in
@@ -181,7 +176,8 @@ let test_extract_environments ctxt =
 
 let suite = "Test latex_tools" >::: [
       "tokens"   >:: test_tokens
-    ; "strip spaces after begin/end"   >:: test_strip_spaces
+    ; "strip spaces after begin/end (stream)"   >:: test_strip_spaces ~list:false
+    ; "strip spaces after begin/end (list)"   >:: test_strip_spaces ~list:true
     ; "marking begin/end of environments" >:: test_begin_end
     ; "coalesce begin/end of environments" >:: test_coalesce
     ; "extract environments" >:: test_extract_environments

@@ -58,6 +58,8 @@ let stream strm =
   | [< '{it=`Escape} as tok1 ; '{it=`CommandName; text="end"} as tok2 ;
        _=Std.plist (parser [< '{it=`MergedSpacer} >] -> ()) ; strm >] -> [< 'tok1 ; 'tok2 ; conv strm >]
 
+  | [< '{it=`Escape} as tok1 ; strm >] -> [< 'tok1 ; conv strm >]
+
   | [< 't ; strm >] -> [< 't ; conv strm >]
   | [< >] -> [< >]
  in conv strm
