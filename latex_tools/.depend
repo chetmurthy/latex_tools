@@ -1,4 +1,4 @@
-latex_tokens.cmo latex_lexer.cmo environments.cmo tools.cmo latex_tokens.cmi latex_lexer.cmi environments.cmi tools.cmi latex_tokens.cmx latex_lexer.cmx environments.cmx tools.cmx: 
+latex_tokens.cmo latex_lexer.cmo environments.cmo visitors.cmo tools.cmo latex_tokens.cmi latex_lexer.cmi environments.cmi visitors.cmi tools.cmi latex_tokens.cmx latex_lexer.cmx environments.cmx visitors.cmx tools.cmx: 
 latex_tokens.cmo :
 latex_tokens.cmx :
 latex_lexer.cmo : \
@@ -11,6 +11,14 @@ environments.cmo : \
 environments.cmx : \
     latex_tokens.cmx \
     environments.cmi
+visitors.cmo : \
+    latex_tokens.cmo \
+    environments.cmi \
+    visitors.cmi
+visitors.cmx : \
+    latex_tokens.cmx \
+    environments.cmx \
+    visitors.cmi
 tools.cmo : \
     latex_tokens.cmo \
     latex_lexer.cmo \
@@ -21,5 +29,8 @@ tools.cmx : \
     tools.cmi
 environments.cmi : \
     latex_tokens.cmo
+visitors.cmi : \
+    latex_tokens.cmo \
+    environments.cmi
 tools.cmi : \
     latex_tokens.cmo

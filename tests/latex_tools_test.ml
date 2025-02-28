@@ -90,11 +90,58 @@ let test_coalesce ctxt =
        |> CoalesceEnvironments.stream
        |> Std.list_of_stream)
 
+let extract_environments strm =
+  let acc = ref [] in
+  let open Visitors.CoalesceEnvironments in
+  let dt = make_dt () in
+  let old_migrate_t_token = dt.migrate_t_token in
+  let migrate_t_token dt tok =
+    let tok = old_migrate_t_token dt tok in
+    match tok.it with
+      `Environment (name, cl) ->
+       Std.push acc tok.text ;
+       tok
+    | _ -> tok in
+  let dt = { dt with migrate_t_token = migrate_t_token } in
+  Stream.iter (fun tok -> ignore(dt.migrate_t_token dt tok)) strm ;
+  List.rev !acc
+
+let test_extract_environments ctxt =
+  let cmp = [%eq: string list] in
+  let printer = [%show: string list] in
+  ()
+  ; assert_equal ~cmp ~printer
+      ["\\begin{foo}\\end{foo}"]
+      ({|\begin{foo}\end{foo}|}
+       |> Tools.stream_of_string
+       |> StripSpaceAfterBeginEnd.stream
+       |> MarkEnvironmentBeginEnd.stream
+       |> CoalesceEnvironments.stream
+       |> extract_environments)
+  ; assert_equal ~cmp ~printer
+      ["\\begin{foo}...\\end{foo}"]
+      ({|\begin{foo}...\end{foo}|}
+       |> Tools.stream_of_string
+       |> StripSpaceAfterBeginEnd.stream
+       |> MarkEnvironmentBeginEnd.stream
+       |> CoalesceEnvironments.stream
+       |> extract_environments)
+  ; assert_equal ~cmp ~printer
+      ["\\begin{bar}..\\end{bar}";
+  "\\begin{foo}..\\begin{bar}..\\end{bar}..\\end{foo}"]
+      ({|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|}
+       |> Tools.stream_of_string
+       |> StripSpaceAfterBeginEnd.stream
+       |> MarkEnvironmentBeginEnd.stream
+       |> CoalesceEnvironments.stream
+       |> extract_environments)
+
 let suite = "Test latex_tools" >::: [
       "tokens"   >:: test_tokens
     ; "strip spaces after begin/end"   >:: test_strip_spaces
     ; "marking begin/end of environments" >:: test_begin_end
     ; "coalesce begin/end of environments" >:: test_coalesce
+    ; "extract environments" >:: test_extract_environments
     ]
 
 let _ = 
