@@ -93,7 +93,7 @@ let list (l : Latex_tokens.t token list) =
       ::tl
       ->
       let loc = Ploc.encl tok1.loc tok5.loc in
-      let t : t token = {it=`EnvironBegin tok4.text; text=tok1.text^tok2.text^tok3.text^tok4.text^tok5.text; loc} in
+      let t : t token = {it=`EnvironEnd tok4.text; text=tok1.text^tok2.text^tok3.text^tok4.text^tok5.text; loc} in
       conv (t::rev_lhs) tl
 
     | (t : Latex_tokens.t token)::tl -> conv ((t : Latex_tokens.t token :> t token)::rev_lhs) tl
@@ -166,7 +166,13 @@ let list (l : EM.t token list) : t token list =
             conv ((t : EM.t token :> t token)::rev_lhs) stk tl
        end
 
-    | [] -> List.rev rev_lhs
+    | [] ->
+       if stk <> [] then begin
+         let envnames = List.map (fun ((name, _), _) -> name) stk in
+         Fmt.(failwithf "CoalsceEnvironments: at EOF, stack of unmatched environments was nonempty: [%a]"
+              (list ~sep:(const string " ") string) envnames)
+         end ;
+       List.rev rev_lhs
   in conv ([] : t token list) [] l
 
 let stream (strm : EM.t token Stream.t) : t token Stream.t =
@@ -203,7 +209,13 @@ let stream (strm : EM.t token Stream.t) : t token Stream.t =
             [< '(t : EM.t token :> t token) ; conv stk strm >]
        end
 
-    | [< >] -> [< >]
+    | [< >] ->
+       if stk <> [] then begin
+         let envnames = List.map (fun ((name, _), _) -> name) stk in
+         Fmt.(failwithf "CoalsceEnvironments: at EOF, stack of unmatched environments was nonempty: [%a]"
+              (list ~sep:(const string " ") string) envnames)
+         end ;
+       [< >]
   in conv [] strm
 
 end
