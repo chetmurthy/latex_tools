@@ -7,7 +7,7 @@ include $(TOP)/config/Makefile.top
 WD=$(shell pwd)
 DESTDIR=
 
-SYSDIRS= latex_tools runtime
+SYSDIRS= latex_tools runtime bin
 
 TESTDIRS= tests
 

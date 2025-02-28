@@ -37,13 +37,13 @@ let filter_environments pred strm =
   Stream.iter (fun tok -> ignore(dt.migrate_t_token dt tok)) strm ;
   List.rev !acc
 
-let read_latex_environments fname =
+let read_latex_environments ~environs fname =
   fname
   |> open_in
   |> Tools.stream_of_channel ~fname:fname
   |> StripSpaceAfterBeginEnd.stream
-  |> MarkEnvironmentBeginEnd.stream
-  |> CoalesceEnvironments.stream
+  |> MarkEnvironmentBeginEnd.stream ~environs
+  |> CoalesceEnvironments.stream ~environs
 
 let pp_environment tok =
   Fmt.(pf stdout "%s\n" tok.text)
@@ -80,11 +80,11 @@ let diagnose_extract_environments el fname =
   Fmt.(pf stdout "[stream] Done %s@." fname) ;
   ()
 
-let extract_environments el f =
+let extract_environments environs f =
   let pred = function
-      {it=`Environment (name, cl)} -> List.mem name el
+      {it=`Environment (name, cl)} -> List.mem name environs
     | _ -> false in
-  let strm = read_latex_environments f in
+  let strm = read_latex_environments ~environs f in
   let envs = filter_environments pred strm in
   Fmt.(pf stdout "==== %s ====\n" f) ;
   List.iter pp_environment envs
