@@ -41,7 +41,7 @@ let test_strip_spaces ~list ctxt =
       {|\argle{foo}|}
       (doit {|\argle{foo}|})
 
-let test_begin_end ctxt =
+let test_begin_end ~list ctxt =
   let cmp = [%eq: MarkEnvironmentBeginEnd.t token list] in
   let printer = [%show: MarkEnvironmentBeginEnd.t token list] in
   let doit_stream s =
@@ -55,27 +55,19 @@ let test_begin_end ctxt =
     |> Tools.list_of_string
     |> StripSpaceAfterBeginEnd.list
     |> MarkEnvironmentBeginEnd.list in
+  let doit = if list then doit_list else doit_stream in
   ()
   ; assert_equal ~cmp ~printer
       [{ it = `EnvironBegin ("foo"); text = "\\begin{foo}"; loc = Ploc.dummy };
        { it = `EnvironEnd ("foo"); text = "\\end{foo}"; loc = Ploc.dummy }]
-      (doit_stream {|\begin{foo}\end{foo}|})
+      (doit {|\begin{foo}\end{foo}|})
   ; assert_equal ~cmp ~printer
       [{ it = `EnvironBegin ("foo"); text = "\\begin{foo}"; loc = Ploc.dummy };
        { it = `Text; text = "..."; loc = Ploc.dummy };
        { it = `EnvironEnd ("foo"); text = "\\end{foo}"; loc = Ploc.dummy }]
-      (doit_stream {|\begin{foo}...\end{foo}|})
-  ; assert_equal ~cmp ~printer
-      [{ it = `EnvironBegin ("foo"); text = "\\begin{foo}"; loc = Ploc.dummy };
-       { it = `EnvironEnd ("foo"); text = "\\end{foo}"; loc = Ploc.dummy }]
-      (doit_list {|\begin{foo}\end{foo}|})
-  ; assert_equal ~cmp ~printer
-      [{ it = `EnvironBegin ("foo"); text = "\\begin{foo}"; loc = Ploc.dummy };
-       { it = `Text; text = "..."; loc = Ploc.dummy };
-       { it = `EnvironEnd ("foo"); text = "\\end{foo}"; loc = Ploc.dummy }]
-      (doit_list {|\begin{foo}...\end{foo}|})
+      (doit {|\begin{foo}...\end{foo}|})
 
-let test_coalesce ctxt =
+let test_coalesce ~list ctxt =
   let cmp = [%eq: CoalesceEnvironments.t token list] in
   let printer = [%show: CoalesceEnvironments.t token list] in
   let doit_stream s =
@@ -91,14 +83,15 @@ let test_coalesce ctxt =
     |> StripSpaceAfterBeginEnd.list
     |> MarkEnvironmentBeginEnd.list
     |> CoalesceEnvironments.list in
+  let doit = if list then doit_list else doit_stream in
   ()
   ; assert_equal ~cmp ~printer
       [{ it = `Environment (("foo", [])); text = "\\begin{foo}\\end{foo}"; loc = Ploc.dummy }]
-      (doit_stream {|\begin{foo}\end{foo}|})
+      (doit {|\begin{foo}\end{foo}|})
   ; assert_equal ~cmp ~printer
       [{ it = `Environment (("foo", [{ it = `Text; text = "..."; loc = Ploc.dummy }]));
          text = "\\begin{foo}...\\end{foo}"; loc = Ploc.dummy }]
-      (doit_stream {|\begin{foo}...\end{foo}|})
+      (doit {|\begin{foo}...\end{foo}|})
   ; assert_equal ~cmp ~printer
       [{ it = `Environment (("foo",
                              [{ it = `Text; text = ".."; loc = Ploc.dummy };
@@ -107,23 +100,7 @@ let test_coalesce ctxt =
                               { it = `Text; text = ".."; loc = Ploc.dummy }]
                 ));
          text = "\\begin{foo}..\\begin{bar}..\\end{bar}..\\end{foo}"; loc = Ploc.dummy }]
-      (doit_stream {|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|})
-  ; assert_equal ~cmp ~printer
-      [{ it = `Environment (("foo", [])); text = "\\begin{foo}\\end{foo}"; loc = Ploc.dummy }]
-      (doit_list {|\begin{foo}\end{foo}|})
-  ; assert_equal ~cmp ~printer
-      [{ it = `Environment (("foo", [{ it = `Text; text = "..."; loc = Ploc.dummy }]));
-         text = "\\begin{foo}...\\end{foo}"; loc = Ploc.dummy }]
-      (doit_list {|\begin{foo}...\end{foo}|})
-  ; assert_equal ~cmp ~printer
-      [{ it = `Environment (("foo",
-                             [{ it = `Text; text = ".."; loc = Ploc.dummy };
-                              { it = `Environment (("bar", [{ it = `Text; text = ".."; loc = Ploc.dummy }]));
-                                text = "\\begin{bar}..\\end{bar}"; loc = Ploc.dummy };
-                              { it = `Text; text = ".."; loc = Ploc.dummy }]
-                ));
-         text = "\\begin{foo}..\\begin{bar}..\\end{bar}..\\end{foo}"; loc = Ploc.dummy }]
-      (doit_list {|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|})
+      (doit {|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|})
 
 let extract_environments strm =
   let acc = ref [] in
@@ -141,46 +118,52 @@ let extract_environments strm =
   Stream.iter (fun tok -> ignore(dt.migrate_t_token dt tok)) strm ;
   List.rev !acc
 
-let test_extract_environments ctxt =
+let test_extract_environments ~list ctxt =
   let cmp = [%eq: string list] in
   let printer = [%show: string list] in
+  let doit_stream s =
+    s
+    |> Tools.stream_of_string
+    |> StripSpaceAfterBeginEnd.stream
+    |> MarkEnvironmentBeginEnd.stream
+    |> CoalesceEnvironments.stream
+    |> extract_environments
+    |> List.map (fun tok -> tok.text) in 
+  let doit_list s =
+    s
+    |> Tools.list_of_string
+    |> StripSpaceAfterBeginEnd.list
+    |> MarkEnvironmentBeginEnd.list
+    |> CoalesceEnvironments.list
+    |> Std.stream_of_list
+    |> extract_environments
+    |> List.map (fun tok -> tok.text) in 
+  let doit = if list then doit_list else doit_stream in
   ()
   ; assert_equal ~cmp ~printer
       ["\\begin{foo}\\end{foo}"]
-      ({|\begin{foo}\end{foo}|}
-       |> Tools.stream_of_string
-       |> StripSpaceAfterBeginEnd.stream
-       |> MarkEnvironmentBeginEnd.stream
-       |> CoalesceEnvironments.stream
-       |> extract_environments
-       |> List.map (fun tok -> tok.text))
+      (doit {|\begin{foo}\end{foo}|})
   ; assert_equal ~cmp ~printer
       ["\\begin{foo}...\\end{foo}"]
-      ({|\begin{foo}...\end{foo}|}
-       |> Tools.stream_of_string
-       |> StripSpaceAfterBeginEnd.stream
-       |> MarkEnvironmentBeginEnd.stream
-       |> CoalesceEnvironments.stream
-       |> extract_environments
-       |> List.map (fun tok -> tok.text))
+      (doit {|\begin{foo}...\end{foo}|})
   ; assert_equal ~cmp ~printer
       ["\\begin{bar}..\\end{bar}";
   "\\begin{foo}..\\begin{bar}..\\end{bar}..\\end{foo}"]
-      ({|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|}
-       |> Tools.stream_of_string
-       |> StripSpaceAfterBeginEnd.stream
-       |> MarkEnvironmentBeginEnd.stream
-       |> CoalesceEnvironments.stream
-       |> extract_environments
-       |> List.map (fun tok -> tok.text))
+      (doit {|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|})
+  ; assert_equal ~cmp ~printer
+      []
+      (doit {|\foo|})
 
 let suite = "Test latex_tools" >::: [
       "tokens"   >:: test_tokens
     ; "strip spaces after begin/end (stream)"   >:: test_strip_spaces ~list:false
     ; "strip spaces after begin/end (list)"   >:: test_strip_spaces ~list:true
-    ; "marking begin/end of environments" >:: test_begin_end
-    ; "coalesce begin/end of environments" >:: test_coalesce
-    ; "extract environments" >:: test_extract_environments
+    ; "marking begin/end of environments (stream)" >:: test_begin_end ~list:false
+    ; "marking begin/end of environments (list)" >:: test_begin_end ~list:true
+    ; "coalesce begin/end of environments (stream)" >:: test_coalesce ~list:false
+    ; "coalesce begin/end of environments (list)" >:: test_coalesce ~list:true
+    ; "extract environments (stream)" >:: test_extract_environments ~list:false
+    ; "extract environments (list)" >:: test_extract_environments ~list:true
     ]
 
 let _ = 

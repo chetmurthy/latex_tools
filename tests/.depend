@@ -1,4 +1,6 @@
-latex_tools_test.cmo latex_token_tool.cmo latex_tools_test.cmi latex_token_tool.cmi latex_tools_test.cmx latex_token_tool.cmx: ../local-install/lib/latex_tools/META ../local-install/lib/latex_tools/META
+utils_test.cmo latex_tools_test.cmo latex_token_tool.cmo utils_test.cmi latex_tools_test.cmi latex_token_tool.cmi utils_test.cmx latex_tools_test.cmx latex_token_tool.cmx: ../local-install/lib/latex_tools/META ../local-install/lib/latex_tools/META
+utils_test.cmo :
+utils_test.cmx :
 latex_tools_test.cmo :
 latex_tools_test.cmx :
 latex_token_tool.cmo :
