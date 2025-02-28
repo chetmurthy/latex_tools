@@ -1,0 +1,3 @@
+extract_environments.cmo extract_environments.cmi extract_environments.cmx: ../local-install/lib/latex_tools/META ../local-install/lib/latex_tools/META
+extract_environments.cmo :
+extract_environments.cmx :
