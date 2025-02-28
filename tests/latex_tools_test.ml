@@ -99,7 +99,7 @@ let extract_environments strm =
     let tok = old_migrate_t_token dt tok in
     match tok.it with
       `Environment (name, cl) ->
-       Std.push acc tok.text ;
+       Std.push acc tok ;
        tok
     | _ -> tok in
   let dt = { dt with migrate_t_token = migrate_t_token } in
@@ -117,7 +117,8 @@ let test_extract_environments ctxt =
        |> StripSpaceAfterBeginEnd.stream
        |> MarkEnvironmentBeginEnd.stream
        |> CoalesceEnvironments.stream
-       |> extract_environments)
+       |> extract_environments
+       |> List.map (fun tok -> tok.text))
   ; assert_equal ~cmp ~printer
       ["\\begin{foo}...\\end{foo}"]
       ({|\begin{foo}...\end{foo}|}
@@ -125,7 +126,8 @@ let test_extract_environments ctxt =
        |> StripSpaceAfterBeginEnd.stream
        |> MarkEnvironmentBeginEnd.stream
        |> CoalesceEnvironments.stream
-       |> extract_environments)
+       |> extract_environments
+       |> List.map (fun tok -> tok.text))
   ; assert_equal ~cmp ~printer
       ["\\begin{bar}..\\end{bar}";
   "\\begin{foo}..\\begin{bar}..\\end{bar}..\\end{foo}"]
@@ -134,7 +136,8 @@ let test_extract_environments ctxt =
        |> StripSpaceAfterBeginEnd.stream
        |> MarkEnvironmentBeginEnd.stream
        |> CoalesceEnvironments.stream
-       |> extract_environments)
+       |> extract_environments
+       |> List.map (fun tok -> tok.text))
 
 let suite = "Test latex_tools" >::: [
       "tokens"   >:: test_tokens
