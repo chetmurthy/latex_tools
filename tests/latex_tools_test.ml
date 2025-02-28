@@ -31,14 +31,14 @@ let test_strip_spaces ctxt =
       {|\begin{foo}\end{foo}|}
       (doit_stream {|\begin{foo}\end{foo}|})
   ; assert_equal ~printer
+      {|\begin{foo}\end{foo}|}
+      (doit_list {|\begin{foo}\end{foo}|})
+  ; assert_equal ~printer
       {|\begin{foo}\end{foo} 
 |}
       (doit_stream {|\begin {foo}\end
 {foo} 
 |})
-  ; assert_equal ~printer
-      {|\begin{foo}\end{foo}|}
-      (doit_list {|\begin{foo}\end{foo}|})
   ; assert_equal ~printer
       {|\begin{foo}\end{foo} 
 |}
