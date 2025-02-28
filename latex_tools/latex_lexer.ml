@@ -102,6 +102,12 @@ let locate buf =
   let (spos, epos) = Sedlexing.lexing_positions buf in
   Ploc.make_unlined (spos.Lexing.pos_cnum, epos.Lexing.pos_cnum)
 
+let split_at loc n =
+  let poslen = Ploc.((last_pos loc) - (first_pos loc)) in
+  let pos1 = Ploc.sub loc 0 n in
+  let pos2 = Ploc.sub loc n (poslen - n) in
+  (pos1, pos2)
+
 let token buf =
   match%sedlex buf with
 (*
@@ -114,9 +120,10 @@ let token buf =
      let lexeme = Sedlexing.Utf8.lexeme buf in
      let len = String.length lexeme in
      let pos = locate buf in
+     let (pos1, pos2) = split_at pos 1 in
      [
-       {it=`Escape; text="\\"; loc=pos}
-     ; {it=`CommandName; text=String.sub lexeme 1 (len - 1); loc=pos}
+       {it=`Escape; text="\\"; loc=pos1}
+     ; {it=`CommandName; text=String.sub lexeme 1 (len - 1); loc=pos2}
      ]
 
   | (cc_Escape, 
@@ -138,9 +145,10 @@ let token buf =
      let lexeme = Sedlexing.Utf8.lexeme buf in
      let len = String.length lexeme in
      let pos = locate buf in
+     let (pos1, pos2) = split_at pos 1 in
      [
-       {it=`Escape; text="\\"; loc=pos}
-     ; {it=`PunctuationCommandName; text=String.sub lexeme 1 (len - 1); loc=pos}
+       {it=`Escape; text="\\"; loc=pos1}
+     ; {it=`PunctuationCommandName; text=String.sub lexeme 1 (len - 1); loc=pos2}
      ]
 
   | cc_Escape -> [{it=`Escape; text=Sedlexing.Utf8.lexeme buf; loc=locate buf}]

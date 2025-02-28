@@ -5,6 +5,27 @@ open Pa_ppx_utils
 open Latex_tools
 open Tools
 open Environments
+(*
+exception ReportedStreamError of (string * (int * int)) option
+*)
+open Pa_ppx_runtime.Exceptions
+type t +=
+  ReportedStreamError of string * (string * (int * int)) option[@name "ReportedStreamError"]
+  [@@deriving show]
+
+
+let report_token_transducer_error name ~underlying strm =
+  let report_underlying () =
+    match Stream.peek underlying with
+      Some tok ->
+       let bp = Ploc.first_pos tok.loc in
+       let ep = Ploc.last_pos tok.loc in
+       raise (ReportedStreamError (name, Some (tok.text, (bp, ep))))
+    | None -> raise (ReportedStreamError (name, None)) in
+  Utils.report_transducer_stream_error report_underlying strm
+
+let transduce name transformer strm =
+  report_token_transducer_error name ~underlying:strm [< (transformer strm) >]
 
 let printer s = s
 
@@ -18,7 +39,7 @@ let test_strip_spaces ~list ctxt =
   let doit_stream s =
     s
     |> Tools.stream_of_string
-    |> StripSpaceAfterBeginEnd.stream
+    |> transduce "strip-spaces" StripSpaceAfterBeginEnd.stream
     |> stream_to_string pp_tex in
   let doit_list s =
     s
@@ -47,8 +68,8 @@ let test_begin_end ~list ctxt =
   let doit_stream s =
     s
     |> Tools.stream_of_string
-    |> StripSpaceAfterBeginEnd.stream
-    |> MarkEnvironmentBeginEnd.stream
+    |> transduce "strip-spaces" StripSpaceAfterBeginEnd.stream
+    |> transduce "mark-environments" MarkEnvironmentBeginEnd.stream
     |> Std.list_of_stream in
   let doit_list s =
     s
@@ -66,6 +87,38 @@ let test_begin_end ~list ctxt =
        { it = `Text; text = "..."; loc = Ploc.dummy };
        { it = `EnvironEnd ("foo"); text = "\\end{foo}"; loc = Ploc.dummy }]
       (doit {|\begin{foo}...\end{foo}|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "foo"; loc = Ploc.dummy };
+       { it = `GroupBegin; text = "{"; loc = Ploc.dummy };
+       { it = `Text; text = "foo"; loc = Ploc.dummy };
+       { it = `GroupEnd; text = "}"; loc = Ploc.dummy }]
+      (doit {|\foo{foo}|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "begin"; loc = Ploc.dummy };
+       { it = `Text; text = "foo"; loc = Ploc.dummy }]
+      (doit {|\begin foo|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "end"; loc = Ploc.dummy };
+       { it = `Text; text = "foo"; loc = Ploc.dummy }]
+      (doit {|\end foo|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "begin"; loc = Ploc.dummy };
+       { it = `GroupBegin; text = "{"; loc = Ploc.dummy };
+       { it = `GroupEnd; text = "}"; loc = Ploc.dummy }]
+      (doit {|\begin {}|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "begin"; loc = Ploc.dummy };
+       { it = `GroupBegin; text = "{"; loc = Ploc.dummy };
+       { it = `Text; text = "a "; loc = Ploc.dummy };
+       { it = `GroupBegin; text = "{"; loc = Ploc.dummy };
+       { it = `GroupEnd; text = "}"; loc = Ploc.dummy };
+       { it = `GroupEnd; text = "}"; loc = Ploc.dummy }]
+      (doit {|\begin {a {}}|})
 
 let test_coalesce ~list ctxt =
   let cmp = [%eq: CoalesceEnvironments.t token list] in
