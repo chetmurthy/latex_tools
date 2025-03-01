@@ -83,7 +83,7 @@ type t = [%import: Texparse.MarkEnvironmentBeginEnd.t]
 ]
 end
 
-module CoalesceTexparse = struct
+module CoalesceEnvironments = struct
 
 let _migrate_token subrw0 __dt__ t =
   { it = (subrw0 __dt__) t.it ; text = t.text ; loc = t.loc }

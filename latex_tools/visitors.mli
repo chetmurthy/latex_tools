@@ -76,7 +76,7 @@ type t = [%import: Texparse.MarkEnvironmentBeginEnd.t]
 ]
 end
 
-module CoalesceTexparse : sig
+module CoalesceEnvironments : sig
 
 type t = [%import: Texparse.CoalesceEnvironments.t]
 [@@deriving migrate

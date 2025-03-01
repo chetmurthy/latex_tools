@@ -23,7 +23,7 @@ Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 
 let filter_environments pred strm =
   let acc = ref [] in
-  let open Visitors.CoalesceTexparse in
+  let open Visitors.CoalesceEnvironments in
   let dt = make_dt () in
   let old_migrate_t_token = dt.migrate_t_token in
   let migrate_t_token dt tok =
@@ -43,7 +43,7 @@ let read_latex_environments ~environs fname =
   |> Tools.stream_of_channel ~fname:fname
   |> StripSpaceAfterBeginEnd.stream
   |> MarkEnvironmentBeginEnd.stream ~environs
-  |> CoalesceTexparse.stream ~environs
+  |> CoalesceEnvironments.stream ~environs
 
 let pp_environment tok =
   Fmt.(pf stdout "%s\n" tok.text)
