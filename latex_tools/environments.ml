@@ -199,32 +199,32 @@ let plist_until terminator elem =
   in plist_rec []
 
 
+let rec pa_environment ~environs ~pa_child = parser
+  [< '({it=`EnvironBegin name} as begin_tok) when environs=[] || List.mem name environs ;
+     cl=plist_until
+          (parser
+             [< '({it=`EnvironEnd name'} as end_tok) when environs=[] || List.mem name' environs >] ->
+           (fun rev_cl ->
+             if name = name' then
+               let ttok_cl = List.rev rev_cl in
+               let ttok_text = Fmt.(str "%s%a%s" begin_tok.text (list ~sep:nop pp_tex) ttok_cl end_tok.text) in
+               let ttok_loc = Ploc.encl begin_tok.loc end_tok.loc in
+               {it=`Environment(name, ttok_cl); text=ttok_text; loc = ttok_loc}
+             else raise (Stream.Error "")))
+          pa_child
+ >] -> cl
+
 let stream ?(environs=[]) strm =
   let name_pred n = environs = [] || List.mem n environs in
   let rec conv  = parser
       [< '({it=`EnvironEnd name'} as tok) when name_pred name' >] ->
       Fmt.(raise_failwithf tok.loc "CoalesceEnvironments: top-level end-environment %s without matching begin-environment" name')
-    | [< '({it=`EnvironBegin name} as begin_tok) when name_pred name ; c = conv_children (name,begin_tok) ; strm >] ->
-       [< 'c ; conv strm >]
-    | [< 't ; strm >] -> [< '(t : EM.t token :> t token) ; conv strm >]
+    | [< c = conv_child >] -> [< 'c ; conv strm >]
     | [< >] -> [< >]
 
-  and conv_children (name, begin_tok) = parser
-      [< c=plist_until
-             (parser
-                [< '({it=`EnvironEnd name'} as end_tok) when name_pred name' >] ->
-              (fun rev_cl ->
-                if name = name' then
-                  let ttok_cl = List.rev rev_cl in
-                  let ttok_text = Fmt.(str "%s%a%s" begin_tok.text (list ~sep:nop pp_tex) ttok_cl end_tok.text) in
-                  let ttok_loc = Ploc.encl begin_tok.loc end_tok.loc in
-                  {it=`Environment(name, ttok_cl); text=ttok_text; loc = ttok_loc}
-                else raise (Stream.Error "")))
-             (parser
-               [< '({it=`EnvironBegin name'} as begin_tok') when name_pred name' ; c = conv_children (name', begin_tok') >] -> c
-             | [< 't >] -> (t : EM.t token :> t token)
-             ) >] -> c
-    | [< >] -> Fmt.(failwithf "CoalesceEnvironments: EOF when looking for end-environment %s" name)
+  and conv_child = parser
+    | [< c = pa_environment ~environs ~pa_child:conv_child >] -> c
+    | [< 't >] -> (t : EM.t token :> t token)
 
   in conv strm
 
