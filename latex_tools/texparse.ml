@@ -304,9 +304,13 @@ and conv ~cmdmap = parser
     let open Parser_utils in 
     try
       l |> Std.stream_of_list |> transduce "conv_list" (conv ~cmdmap) |> Std.list_of_stream
-    with (Stream.Error _ | ReportedStreamError (_, None)) ->
-      let loc = Ploc.(sub tok.loc ((last_pos tok.loc) - (first_pos tok.loc)) 0) in
-      raise (ReportedStreamError ("conv_list", Some (tok.text, loc)))
+    with
+      Stream.Error _ ->
+       let loc = Ploc.(sub tok.loc ((last_pos tok.loc) - (first_pos tok.loc)) 0) in
+       raise (ReportedStreamError ("conv_list", None, Some (tok.text, loc)))
+    | ReportedStreamError (_, tokopt, None) ->
+       let loc = Ploc.(sub tok.loc ((last_pos tok.loc) - (first_pos tok.loc)) 0) in
+       raise (ReportedStreamError ("conv_list", tokopt, Some (tok.text, loc)))
 
 
 end

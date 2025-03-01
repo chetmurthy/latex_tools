@@ -100,7 +100,7 @@ let punctuation_commands = [%sedlex.regexp?
 
 let locate buf =
   let (spos, epos) = Sedlexing.lexing_positions buf in
-  Ploc.make_unlined (spos.Lexing.pos_cnum, epos.Lexing.pos_cnum)
+  Utils.make_loc ~fname:spos.Lexing.pos_fname (spos.Lexing.pos_cnum, epos.Lexing.pos_cnum)
 
 let split_at loc n =
   let poslen = Ploc.((last_pos loc) - (first_pos loc)) in

@@ -55,6 +55,7 @@ module EM = MarkEnvironmentBeginEnd
 module CG = CoalesceGroups
 type t = [ EM.t | `CommandGroup of t token list |  `CommandBracket of t token list | `Command of string * t token list * t token list ][@@deriving show { with_path = false }, eq]
 
+val pp_tex : t Latex_tokens.token Fmt.t
     val stream :
       cmdmap:(string * (int * int)) list -> CG.t token Stream.t -> t token Stream.t
   end

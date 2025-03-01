@@ -18,7 +18,7 @@ let eq_loc loc1 loc2 =
 let assert_raises_exc_at loc f =
   Testutil.assert_raises_exn_pred
     (function
-       ReportedStreamError(_,Some(_,loc')) as exc ->
+       ReportedStreamError(_,_, Some(_,loc')) as exc ->
         if not(eq_loc loc loc') then begin
             Fmt.(pf stderr "Locations didn't match: %a <> %a@."
                    Pp_MLast.Ploc.pp loc Pp_MLast.Ploc.pp loc') ;
@@ -419,6 +419,17 @@ let test_parse_commands ctxt =
          text = "\\x{\\ref{a}\\label{b}}"; loc = Ploc.dummy }
       ]
       (doit [("x",(1,0));("ref",(1,0))] {|\x{\ref{a}\label{b}}|})
+  ; assert_equal ~cmp ~printer
+      [{ it =
+           `Command (
+               ("of", [],
+                [{ it = `CommandGroup ([{ it = `Text; text = "xx"; loc = Ploc.dummy }]);
+                   text = "{xx}"; loc = Ploc.dummy }
+               ])
+             );
+         text = "\\of{xx}"; loc = Ploc.dummy }
+      ]
+      (doit [("of",(1,0))] {|\of{xx}|})
 
 let suite = "Test latex_tools" >::: [
       "tokens"   >:: test_tokens

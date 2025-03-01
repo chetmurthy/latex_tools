@@ -10,9 +10,9 @@ let printer s = s
 
 exception ReportedStreamError of string
 let report1 name strm =
-  let report_underlying () =
+  let report_underlying _ =
     raise (ReportedStreamError name) in
-  Utils.report_transducer_stream_error report_underlying strm
+  Utils.report_transducer_stream_error (fun _ -> ()) report_underlying strm
 
 let rec firstn_stream n strm =
   if n = 0 then [< >]
@@ -40,11 +40,11 @@ let transform1 = parser
 | [< >] -> [< >]
 
 let report2 ~underlying strm =
-  let report_underlying () =
+  let report_underlying _ =
     match Stream.peek underlying with
       Some n -> raise (ReportedStreamError n)
     | None -> raise (ReportedStreamError "<end-of-stream>") in
-  Utils.report_transducer_stream_error report_underlying strm
+  Utils.report_transducer_stream_error (fun _ -> ()) report_underlying strm
 
 let transduce transformer strm =
   report2 ~underlying:strm [< (transformer strm) >]
