@@ -259,8 +259,9 @@ let rec pp_tex pps (t : t token) =
      Fmt.(pf pps "[%a]" (list ~sep:nop pp_tex) cl)
   | {text=s} -> Fmt.(pf pps "%s" s)
 
-let stream ~cmdmap (strm : CG.t token Stream.t) : t token Stream.t =
-  let rec conv = parser
+let rec stream ~cmdmap (strm : CG.t token Stream.t) : t token Stream.t =
+  conv ~cmdmap strm
+and conv ~cmdmap = parser
       [< '({it=`Escape} as tok1) ;
          '({it=`CommandName} as tok2) when List.mem_assoc tok2.text cmdmap ; strm >] ->
         begin
@@ -270,38 +271,42 @@ let stream ~cmdmap (strm : CG.t token Stream.t) : t token Stream.t =
              (parser
                 [< optargs = plist_atmostn n (parser [< '{it=`Bracket _} as t >] -> t) ;
                  args = plistn (m-n) (parser [< '{it=`Group _} as t >] -> t) ; strm >] ->
-              let optargs = List.map conv1 optargs in
-              let args = List.map conv1 args in
+              let optargs = List.map (conv1 ~cmdmap) optargs in
+              let args = List.map (conv1 ~cmdmap) args in
               let ttok_text = Fmt.(str "\\%s%a%a" name
                                      (list ~sep:nop pp_tex) optargs
                                      (list ~sep:nop pp_tex) args) in
               let ttok_loc = Ploc.encl tok1.loc (Std.last args).loc in
-              [< '{it=`Command (name, optargs, args); text=ttok_text; loc = ttok_loc} ; conv strm >]) strm
+              [< '{it=`Command (name, optargs, args); text=ttok_text; loc = ttok_loc} ; conv ~cmdmap strm >]) strm
 
           | (m,n) ->
              Fmt.(failwithf "Commands.stream: #optional #args=%d, #args=%d: #optional must be in [0,1); #optional <= #args" m n)
         end
 
     | [< '({it=`Escape} as tok1) ; '({it=`CommandName} as tok2) ; strm >] ->
-        [< '(tok1: EM.t token :> t token) ; '(tok2 : EM.t token :> t token) ; conv strm >]
+        [< '(tok1: EM.t token :> t token) ; '(tok2 : EM.t token :> t token) ; conv ~cmdmap strm >]
 
     | [< '({it=`Escape} as tok1) ; strm >] ->
-        [< '(tok1: EM.t token :> t token) ; conv strm >]
+        [< '(tok1: EM.t token :> t token) ; conv ~cmdmap strm >]
 
-    | [< '({it=`Group _} as tok) ; strm >] -> [< '(conv1 tok) ; conv strm >]
-    | [< '({it=`Bracket _} as tok) ; strm >] -> [< '(conv1 tok) ; conv strm >]
+    | [< '({it=`Group _} as tok) ; strm >] -> [< '(conv1 ~cmdmap tok) ; conv ~cmdmap strm >]
+    | [< '({it=`Bracket _} as tok) ; strm >] -> [< '(conv1 ~cmdmap tok) ; conv ~cmdmap strm >]
 
-    | [< 'c ; strm >] -> [< '((CG.upcast_token c) : EM.t token :> t token) ; conv strm >]
+    | [< 'c ; strm >] -> [< '((CG.upcast_token c) : EM.t token :> t token) ; conv ~cmdmap strm >]
     | [< >] -> [< >]
 
-  and conv1 = function
-      {it=`Group l} as tok -> {it=`CommandGroup (conv_list l); text = tok.text ; loc = tok.loc}
-    | {it=`Bracket l} as tok -> {it=`CommandBracket (conv_list l); text = tok.text ; loc = tok.loc}
+  and conv1 ~cmdmap = function
+      {it=`Group l} as tok -> {it=`CommandGroup (conv_list ~cmdmap tok l); text = tok.text ; loc = tok.loc}
+    | {it=`Bracket l} as tok -> {it=`CommandBracket (conv_list ~cmdmap tok l); text = tok.text ; loc = tok.loc}
     | _ -> assert false
 
-  and conv_list l =
-    l |> Std.stream_of_list |> conv |> Std.list_of_stream
+  and conv_list ~cmdmap tok l =
+    let open Parser_utils in 
+    try
+      l |> Std.stream_of_list |> transduce "conv_list" (conv ~cmdmap) |> Std.list_of_stream
+    with (Stream.Error _ | ReportedStreamError (_, None)) ->
+      let loc = Ploc.(sub tok.loc ((last_pos tok.loc) - (first_pos tok.loc)) 0) in
+      raise (ReportedStreamError ("conv_list", Some (tok.text, loc)))
 
-  in conv strm
 
 end

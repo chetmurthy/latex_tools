@@ -1,31 +1,32 @@
 (**pp -syntax camlp5o -package pa_ppx.testutils,pa_ppx.utils,latex_tools,pa_ppx.deriving_plugins.std *)
 open OUnit2
 open Pa_ppx_testutils
+open Pa_ppx_base
 open Pa_ppx_utils
 open Latex_tools
 open Tools
 open Texparse
-(*
-exception ReportedStreamError of (string * (int * int)) option
-*)
-open Pa_ppx_runtime.Exceptions
-type t +=
-  ReportedStreamError of string * (string * (int * int)) option[@name "ReportedStreamError"]
-  [@@deriving show]
+open Parser_utils
 
+Pa_ppx_runtime.Exceptions.Ploc.pp_loc_verbose := true ;;
+Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 
-let report_token_transducer_error name ~underlying strm =
-  let report_underlying () =
-    match Stream.peek underlying with
-      Some tok ->
-       let bp = Ploc.first_pos tok.loc in
-       let ep = Ploc.last_pos tok.loc in
-       raise (ReportedStreamError (name, Some (tok.text, (bp, ep))))
-    | None -> raise (ReportedStreamError (name, None)) in
-  Utils.report_transducer_stream_error report_underlying strm
+let eq_loc loc1 loc2 =
+  Ploc.first_pos loc1 = Ploc.first_pos loc2 &&
+  Ploc.last_pos loc1 = Ploc.last_pos loc2
 
-let transduce name transformer strm =
-  report_token_transducer_error name ~underlying:strm [< (transformer strm) >]
+let assert_raises_exc_at loc f =
+  Testutil.assert_raises_exn_pred
+    (function
+       ReportedStreamError(_,Some(_,loc')) as exc ->
+        if not(eq_loc loc loc') then begin
+            Fmt.(pf stderr "Locations didn't match: %a <> %a@."
+                   Pp_MLast.Ploc.pp loc Pp_MLast.Ploc.pp loc') ;
+            false
+          end
+        else true
+     | _ -> false)
+    f
 
 let printer s = s
 
@@ -336,7 +337,7 @@ let test_parse_commands ctxt =
     |> StripSpaceAfterBeginEnd.stream
     |> MarkEnvironmentBeginEnd.stream
     |> CoalesceGroups.stream
-    |> Commands.stream ~cmdmap
+    |> transduce "commands" (Commands.stream ~cmdmap)
     |> Std.list_of_stream in
   ()
   ; assert_equal ~cmp ~printer
@@ -387,6 +388,10 @@ let test_parse_commands ctxt =
          text = "\\foo[x]{a}"; loc = Ploc.dummy }
       ]
       (doit [("foo",(2,1))] {|\foo[x]{a}|})
+  ; assert_raises_exc_at (Ploc.make_unlined (12,12))
+      (fun _ -> doit [("foo",(3,1))] {|abc{\foo{a}}|})
+  ; assert_raises_exc_at (Ploc.make_unlined (10,13))
+      (fun _ -> doit [("foo",(3,1))] {|abc\foo{a}def|})
   ; assert_equal ~cmp ~printer
       [{ it =
            `Command (

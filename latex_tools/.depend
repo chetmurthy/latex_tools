@@ -1,16 +1,24 @@
-utils.cmo latex_tokens.cmo latex_lexer.cmo texparse.cmo visitors.cmo tools.cmo utils.cmi latex_tokens.cmi latex_lexer.cmi texparse.cmi visitors.cmi tools.cmi utils.cmx latex_tokens.cmx latex_lexer.cmx texparse.cmx visitors.cmx tools.cmx: 
+utils.cmo latex_tokens.cmo parser_utils.cmo latex_lexer.cmo texparse.cmo visitors.cmo tools.cmo utils.cmi latex_tokens.cmi parser_utils.cmi latex_lexer.cmi texparse.cmi visitors.cmi tools.cmi utils.cmx latex_tokens.cmx parser_utils.cmx latex_lexer.cmx texparse.cmx visitors.cmx tools.cmx: 
 utils.cmo :
 utils.cmx :
 latex_tokens.cmo :
 latex_tokens.cmx :
+parser_utils.cmo : \
+    utils.cmo \
+    latex_tokens.cmo
+parser_utils.cmx : \
+    utils.cmx \
+    latex_tokens.cmx
 latex_lexer.cmo : \
     latex_tokens.cmo
 latex_lexer.cmx : \
     latex_tokens.cmx
 texparse.cmo : \
+    parser_utils.cmo \
     latex_tokens.cmo \
     texparse.cmi
 texparse.cmx : \
+    parser_utils.cmx \
     latex_tokens.cmx \
     texparse.cmi
 visitors.cmo : \
