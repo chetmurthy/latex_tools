@@ -10,8 +10,8 @@ DESTDIR=
 PACKAGES := $(PACKAGES),fmt,pcre2,str,pa_ppx.base,pa_ppx.utils,pa_ppx.deriving_plugins.std,pa_ppx_regexp
 TARGET_PACKAGE = latex_tools
 TARGET = $(TARGET_PACKAGE).cma
-ML = utils.ml latex_tokens.ml latex_lexer.ml environments.ml visitors.ml tools.ml
-MLI = environments.mli visitors.mli tools.mli
+ML = utils.ml latex_tokens.ml latex_lexer.ml texparse.ml visitors.ml tools.ml
+MLI =  visitors.mli texparse.mli tools.mli
 ALLSRC=$(ML) $(MLI)
 ALLPACKAGES=$(PACKAGES)
 

@@ -44,14 +44,14 @@ type t = [%import: Latex_tokens.t]
 end
 
 module MarkEnvironmentBeginEnd : sig
-type t = [%import: Environments.MarkEnvironmentBeginEnd.t]
+type t = [%import: Texparse.MarkEnvironmentBeginEnd.t]
 [@@deriving migrate
     { dispatch_type = dispatch_table_t
     ; dispatch_table_constructor = make_dt
     ; default_dispatchers = [
         {
-          srcmod = Environments.MarkEnvironmentBeginEnd
-        ; dstmod = Environments.MarkEnvironmentBeginEnd
+          srcmod = Texparse.MarkEnvironmentBeginEnd
+        ; dstmod = Texparse.MarkEnvironmentBeginEnd
         ; types = [
             t
           ]
@@ -76,16 +76,16 @@ type t = [%import: Environments.MarkEnvironmentBeginEnd.t]
 ]
 end
 
-module CoalesceEnvironments : sig
+module CoalesceTexparse : sig
 
-type t = [%import: Environments.CoalesceEnvironments.t]
+type t = [%import: Texparse.CoalesceEnvironments.t]
 [@@deriving migrate
     { dispatch_type = dispatch_table_t
     ; dispatch_table_constructor = make_dt
     ; default_dispatchers = [
         {
-          srcmod = Environments.CoalesceEnvironments
-        ; dstmod = Environments.CoalesceEnvironments
+          srcmod = Texparse.CoalesceEnvironments
+        ; dstmod = Texparse.CoalesceEnvironments
         ; types = [
             t
           ]

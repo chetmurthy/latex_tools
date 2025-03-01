@@ -4,7 +4,7 @@ open Pa_ppx_testutils
 open Pa_ppx_utils
 open Latex_tools
 open Tools
-open Environments
+open Texparse
 (*
 exception ReportedStreamError of (string * (int * int)) option
 *)

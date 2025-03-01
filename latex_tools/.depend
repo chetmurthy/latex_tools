@@ -1,4 +1,4 @@
-utils.cmo latex_tokens.cmo latex_lexer.cmo environments.cmo visitors.cmo tools.cmo utils.cmi latex_tokens.cmi latex_lexer.cmi environments.cmi visitors.cmi tools.cmi utils.cmx latex_tokens.cmx latex_lexer.cmx environments.cmx visitors.cmx tools.cmx: 
+utils.cmo latex_tokens.cmo latex_lexer.cmo texparse.cmo visitors.cmo tools.cmo utils.cmi latex_tokens.cmi latex_lexer.cmi texparse.cmi visitors.cmi tools.cmi utils.cmx latex_tokens.cmx latex_lexer.cmx texparse.cmx visitors.cmx tools.cmx: 
 utils.cmo :
 utils.cmx :
 latex_tokens.cmo :
@@ -7,19 +7,19 @@ latex_lexer.cmo : \
     latex_tokens.cmo
 latex_lexer.cmx : \
     latex_tokens.cmx
-environments.cmo : \
+texparse.cmo : \
     latex_tokens.cmo \
-    environments.cmi
-environments.cmx : \
+    texparse.cmi
+texparse.cmx : \
     latex_tokens.cmx \
-    environments.cmi
+    texparse.cmi
 visitors.cmo : \
+    texparse.cmi \
     latex_tokens.cmo \
-    environments.cmi \
     visitors.cmi
 visitors.cmx : \
+    texparse.cmx \
     latex_tokens.cmx \
-    environments.cmx \
     visitors.cmi
 tools.cmo : \
     latex_tokens.cmo \
@@ -29,10 +29,10 @@ tools.cmx : \
     latex_tokens.cmx \
     latex_lexer.cmx \
     tools.cmi
-environments.cmi : \
-    latex_tokens.cmo
 visitors.cmi : \
-    latex_tokens.cmo \
-    environments.cmi
+    texparse.cmi \
+    latex_tokens.cmo
+texparse.cmi : \
+    latex_tokens.cmo
 tools.cmi : \
     latex_tokens.cmo
