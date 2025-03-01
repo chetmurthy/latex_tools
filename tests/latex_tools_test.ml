@@ -310,6 +310,38 @@ let test_extract_environments ~list ctxt =
       []
       (doit {|\foo|})
 
+let test_partial_extract_environments ~list ctxt =
+  let cmp = [%eq: string list] in
+  let printer = [%show: string list] in
+  let doit_stream environs s =
+    s
+    |> Tools.stream_of_string
+    |> StripSpaceAfterBeginEnd.stream
+    |> MarkEnvironmentBeginEnd.stream ~environs
+    |> CoalesceEnvironments.stream ~environs
+    |> extract_environments
+    |> List.map (fun tok -> tok.text) in 
+  let doit_list environs s =
+    s
+    |> Tools.list_of_string
+    |> StripSpaceAfterBeginEnd.list
+    |> MarkEnvironmentBeginEnd.list ~environs
+    |> CoalesceEnvironments.list ~environs
+    |> Std.stream_of_list
+    |> extract_environments
+    |> List.map (fun tok -> tok.text) in 
+  let doit = if list then doit_list else doit_stream in
+  ()
+  ; assert_equal ~cmp ~printer
+      ["\\begin{foo}\\end{foo}"]
+      (doit ["foo"] {|\begin{foo}\end{foo}|})
+  ; assert_equal ~cmp ~printer
+      ["\\begin{foo}...\\end{foo}"]
+      (doit ["foo"] {|\begin{foo}...\end{foo}|})
+  ; assert_equal ~cmp ~printer
+      ["\\begin{foo}..\\begin{bar}..\\end{bar}..\\end{foo}"]
+      (doit ["foo"] {|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|})
+
 let suite = "Test latex_tools" >::: [
       "tokens"   >:: test_tokens
     ; "strip spaces after begin/end (stream)"   >:: test_strip_spaces ~list:false
@@ -324,6 +356,8 @@ let suite = "Test latex_tools" >::: [
     ; "partial coalesce begin/end of environments (list)" >:: test_partial_coalesce ~list:true
     ; "extract environments (stream)" >:: test_extract_environments ~list:false
     ; "extract environments (list)" >:: test_extract_environments ~list:true
+    ; "partial extract environments (stream)" >:: test_partial_extract_environments ~list:false
+    ; "partial extract environments (list)" >:: test_partial_extract_environments ~list:true
     ]
 
 let _ = 
