@@ -233,28 +233,33 @@ end
 
 module CoalesceGroups = struct
 module EM = MarkEnvironmentBeginEnd
-type t = [ EM.t | `Group of t token list ][@@deriving show { with_path = false }, eq]
+type t = [ EM.t | `Group of t token list |  `Bracket of t token list ][@@deriving show { with_path = false }, eq]
 
 let rec pp_tex pps (t : t token) =
   match t with
     {it=`Group cl} ->
      Fmt.(pf pps "{%a}" (list ~sep:nop pp_tex) cl)
-  | {it=`EnvironBegin s} -> Fmt.(pf pps "\\begin{%s}" s) ;
-  | {it=`EnvironEnd s} -> Fmt.(pf pps "\\end{%s}" s) ;
+  | {it=`Bracket cl} ->
+     Fmt.(pf pps "[%a]" (list ~sep:nop pp_tex) cl)
   | {text=s} -> Fmt.(pf pps "%s" s)
 
 let list (l : EM.t token list) : t token list =
   let rec conv (rev_lhs : t token list) = function
       ({it=`GroupEnd} as tok)::tl ->
       Fmt.(raise_failwith tok.loc "CoalesceGroups: top-level GroupEnd without matching GroupBegin")
+    | ({it=`BracketEnd} as tok)::tl ->
+      Fmt.(raise_failwith tok.loc "CoalesceGroups: top-level BracketEnd without matching BracketBegin")
     | ({it=`GroupBegin} as begin_tok)::tl ->
-       let (c, tl) = conv_children begin_tok [] tl in
+       let (c, tl) = conv_group_children begin_tok [] tl in
+       conv (c::rev_lhs) tl
+    | ({it=`BracketBegin} as begin_tok)::tl ->
+       let (c, tl) = conv_bracket_children begin_tok [] tl in
        conv (c::rev_lhs) tl
 
     | t::tl -> conv ((t : EM.t token :> t token)::rev_lhs) tl
     | [] -> List.rev rev_lhs
 
-  and conv_children begin_tok rev_lhs = function
+  and conv_group_children begin_tok rev_lhs = function
       ({it=`GroupEnd} as end_tok)::tl ->
        let ttok_cl = List.rev rev_lhs in
        let ttok_text = Fmt.(str "{%a}" (list ~sep:nop pp_tex) ttok_cl) in
@@ -263,11 +268,34 @@ let list (l : EM.t token list) : t token list =
        (ttok, tl)
 
     | ({it=`GroupBegin} as begin_tok')::tl ->
-       let (c, tl) = conv_children begin_tok' [] tl in
-       conv_children begin_tok (c::rev_lhs) tl
+       let (c, tl) = conv_group_children begin_tok' [] tl in
+       conv_group_children begin_tok (c::rev_lhs) tl
 
-    | t::tl -> conv_children begin_tok ((t : EM.t token :> t token)::rev_lhs) tl
+    | ({it=`BracketBegin} as begin_tok')::tl ->
+       let (c, tl) = conv_bracket_children begin_tok' [] tl in
+       conv_group_children begin_tok (c::rev_lhs) tl
+
+    | t::tl -> conv_group_children begin_tok ((t : EM.t token :> t token)::rev_lhs) tl
     | [] -> Fmt.(failwithf "CoalesceGroups: EOF when looking for GroupEnd")
+
+  and conv_bracket_children begin_tok rev_lhs = function
+      ({it=`BracketEnd} as end_tok)::tl ->
+       let ttok_cl = List.rev rev_lhs in
+       let ttok_text = Fmt.(str "{%a}" (list ~sep:nop pp_tex) ttok_cl) in
+       let ttok_loc = Ploc.encl begin_tok.loc end_tok.loc in
+       let ttok = {it=`Bracket ttok_cl; text=ttok_text; loc = ttok_loc} in
+       (ttok, tl)
+
+    | ({it=`GroupBegin} as begin_tok')::tl ->
+       let (c, tl) = conv_group_children begin_tok' [] tl in
+       conv_bracket_children begin_tok (c::rev_lhs) tl
+
+    | ({it=`BracketBegin} as begin_tok')::tl ->
+       let (c, tl) = conv_bracket_children begin_tok' [] tl in
+       conv_bracket_children begin_tok (c::rev_lhs) tl
+
+    | t::tl -> conv_bracket_children begin_tok ((t : EM.t token :> t token)::rev_lhs) tl
+    | [] -> Fmt.(failwithf "CoalesceGroups: EOF when looking for BracketEnd")
 
   in conv [] l
 
@@ -291,15 +319,31 @@ let rec pa_group ~pa_child = parser
           pa_child
  >] -> cl
 
+let rec pa_bracket ~pa_child = parser
+  [< '({it=`BracketBegin} as begin_tok) ;
+     cl=plist_until
+          (parser
+             [< '({it=`BracketEnd} as end_tok) >] ->
+           (fun rev_cl ->
+             let ttok_cl = List.rev rev_cl in
+             let ttok_text = Fmt.(str "{%a}" (list ~sep:nop pp_tex) ttok_cl) in
+             let ttok_loc = Ploc.encl begin_tok.loc end_tok.loc in
+             {it=`Bracket ttok_cl; text=ttok_text; loc = ttok_loc}))
+          pa_child
+ >] -> cl
+
 let stream strm =
   let rec conv  = parser
       [< '({it=`GroupEnd} as tok) >] ->
       Fmt.(raise_failwithf tok.loc "CoalesceGroups: top-level GroupEnd without matching GroupBegin")
+    | [< '({it=`BracketEnd} as tok) >] ->
+      Fmt.(raise_failwithf tok.loc "CoalesceGroups: top-level BracketEnd without matching BracketBegin")
     | [< c = conv_child >] -> [< 'c ; conv strm >]
     | [< >] -> [< >]
 
   and conv_child = parser
     | [< c = pa_group ~pa_child:conv_child >] -> c
+    | [< c = pa_bracket ~pa_child:conv_child >] -> c
     | [< 't >] -> (t : EM.t token :> t token)
 
   in conv strm

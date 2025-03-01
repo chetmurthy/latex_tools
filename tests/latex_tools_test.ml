@@ -363,8 +363,18 @@ let test_coalesce_group ~list ctxt =
   ()
   ; assert_equal ~cmp ~printer
       [{ it = `Group ([{ it = `Text; text = "foo bar buzz"; loc = Ploc.dummy }]);
-         text = "{foo bar buzz}"; loc = Ploc.dummy }]
-      (doit {|{foo bar buzz}|})
+         text = "{foo bar buzz}"; loc = Ploc.dummy };
+       { it =
+           `Bracket (
+               [{ it = `Text; text = "yadda "; loc = Ploc.dummy };
+                { it = `Group ([{ it = `Text; text = "meh"; loc = Ploc.dummy }]);
+                  text = "{meh}"; loc = Ploc.dummy };
+                { it = `MergedSpacer; text = " "; loc = Ploc.dummy };
+                { it = `Text; text = "yadda"; loc = Ploc.dummy }]
+             );
+         text = "{yadda {meh} yadda}"; loc = Ploc.dummy }
+      ]
+      (doit {|{foo bar buzz}[yadda {meh} yadda]|})
   ; assert_equal ~cmp ~printer
       [{ it = `Escape; text = "\\"; loc = Ploc.dummy };
        { it = `CommandName; text = "ref"; loc = Ploc.dummy };
