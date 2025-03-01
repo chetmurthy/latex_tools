@@ -57,8 +57,9 @@ let diagnose_extract_environments_list el fname =
   ; Fmt.(pf stdout "[list] Strip Spaces after begin/end %s@." fname)
   ; ignore (fname
             |> open_in
-            |> Tools.list_of_channel ~fname:fname
-            |> StripSpaceAfterBeginEnd.list)
+            |> Tools.stream_of_channel ~fname:fname
+            |> StripSpaceAfterBeginEnd.stream
+            |> Std.list_of_stream)
   end ;
   Fmt.(pf stdout "[list] Done %s@." fname) ;
   ()
