@@ -7,6 +7,30 @@ open Ppxutil
 open Pa_ppx_utils
 open Latex_tokens
 
+let plist_until terminator elem = 
+  let rec plist_rec acc = parser
+      [< rv=terminator >] -> rv acc
+    | [< e = elem; strm >] -> plist_rec (e::acc) strm
+  in plist_rec []
+
+let plistn n elem = 
+  let rec plist_rec n accum strm =
+    if n = 0 then List.rev accum
+    else
+      (parser
+         [< e = elem; strm >] -> plist_rec (n-1) (e::accum) strm) strm
+  in plist_rec n []
+
+let plist_atmostn n elem = 
+  let rec plist_rec n accum strm =
+    if n = 0 then List.rev accum
+    else
+      (parser
+         [< e = elem; strm >] -> plist_rec (n-1) (e::accum) strm
+      | [< >]                 -> (List.rev accum)) strm
+  in plist_rec n []
+
+
 (* convert a LIST of RAW tokens into a list of raw tokens, BUT with
    begin/end environment markers recognized and converted into
    structures for further processing. *)
@@ -96,13 +120,6 @@ let rec pp_tex pps (t : t token) =
   | {it=`EnvironEnd s} -> Fmt.(pf pps "\\end{%s}" s) ;
   | {text=s} -> Fmt.(pf pps "%s" s)
 
-let plist_until terminator elem = 
-  let rec plist_rec acc = parser
-      [< rv=terminator >] -> rv acc
-    | [< e = elem; strm >] -> plist_rec (e::acc) strm
-  in plist_rec []
-
-
 let rec pa_environment ~environs ~pa_child = parser
   [< '({it=`EnvironBegin name} as begin_tok) when environs=[] || List.mem name environs ;
      cl=plist_until
@@ -134,7 +151,6 @@ let stream ?(environs=[]) strm =
 
 end
 
-
 module CoalesceGroups = struct
 module EM = MarkEnvironmentBeginEnd
 type t = [ EM.t | `Group of t token list |  `Bracket of t token list ][@@deriving show { with_path = false }, eq]
@@ -147,13 +163,6 @@ let rec pp_tex pps (t : t token) =
      Fmt.(pf pps "[%a]" (list ~sep:nop pp_tex) cl)
   | {text=s} -> Fmt.(pf pps "%s" s)
 
-let plist_until terminator elem = 
-  let rec plist_rec acc = parser
-      [< rv=terminator >] -> rv acc
-    | [< e = elem; strm >] -> plist_rec (e::acc) strm
-  in plist_rec []
-
-
 let rec pa_group ~pa_child = parser
   [< '({it=`GroupBegin} as begin_tok) ;
      cl=plist_until
@@ -197,68 +206,69 @@ let stream strm =
   in conv strm
 
 end
-(*
+
 module Commands = struct
 module CG = CoalesceGroups
-type t = [ CG.t | `Command of string * t token list * t token list ][@@deriving show { with_path = false }, eq]
+type t = [ CG.t | `CommandGroup of t token list |  `CommandBracket of t token list | `Command of string * t token list * t token list ][@@deriving show { with_path = false }, eq]
 
-wrap (l,r) ppx pps x = Fmt.(pf pps "%s%a%s" l ppx x r)
+let wrap (l,r) ppx pps x = Fmt.(pf pps "%s%a%s" l ppx x r)
 
 let rec pp_tex pps (t : t token) =
   match t with
     {it=`Command(name, optargs, args)} ->
-     Fmt.(pf pps "\\%s{%a}" name
+     Fmt.(pf pps "\\%s%a%a" name
             (list ~sep:nop (wrap ("[","]") pp_tex)) optargs
             (list ~sep:nop (wrap ("(",")") pp_tex)) args)
+  | {it=`CommandGroup cl} ->
+     Fmt.(pf pps "{%a}" (list ~sep:nop pp_tex) cl)
+  | {it=`CommandBracket cl} ->
+     Fmt.(pf pps "[%a]" (list ~sep:nop pp_tex) cl)
   | {text=s} -> Fmt.(pf pps "%s" s)
 
-let plist_until terminator elem = 
-  let rec plist_rec acc = parser
-      [< rv=terminator >] -> rv acc
-    | [< e = elem; strm >] -> plist_rec (e::acc) strm
-  in plist_rec []
+let stream ~cmdmap (strm : CG.t token Stream.t) : t token Stream.t =
+  let rec conv = parser
+      [< '({it=`Escape} as tok1) ;
+         '({it=`CommandName} as tok2) when List.mem_assoc tok2.text cmdmap ; strm >] ->
+        begin
+          let name = tok2.text in
+          match List.assoc name cmdmap with
+          | (m,n) when 0<=n && n <= 1 && 0 < m ->
+             (parser
+                [< optargs = plist_atmostn n (parser [< '{it=`Bracket _} as t >] -> t) ;
+                 args = plistn m (parser [< '{it=`Group _} as t >] -> t) ; strm >] ->
+              let optargs = List.map conv1 optargs in
+              let args = List.map conv1 args in
+              let ttok_text = Fmt.(str "\\%s%a%a" name
+                                     (list ~sep:nop (wrap ("[","]") pp_tex)) optargs
+                                     (list ~sep:nop (wrap ("(",")") pp_tex)) args) in
+              let ttok_loc = Ploc.encl tok1.loc (Std.last args).loc in
+              [< '{it=`Command (name, optargs, args); text=ttok_text; loc = ttok_loc} ; conv strm >]) strm
 
-let rec pa_group ~pa_child = parser
-  [< '({it=`GroupBegin} as begin_tok) ;
-     cl=plist_until
-          (parser
-             [< '({it=`GroupEnd} as end_tok) >] ->
-           (fun rev_cl ->
-             let ttok_cl = List.rev rev_cl in
-             let ttok_text = Fmt.(str "{%a}" (list ~sep:nop pp_tex) ttok_cl) in
-             let ttok_loc = Ploc.encl begin_tok.loc end_tok.loc in
-             {it=`Group ttok_cl; text=ttok_text; loc = ttok_loc}))
-          pa_child
- >] -> cl
+          | (m,n) ->
+             Fmt.(failwithf "Commands.stream: commands MUST have at least one argument, and may have at most one optional argument (not (%d,%d))" m n)
+        end
 
-let rec pa_bracket ~pa_child = parser
-  [< '({it=`BracketBegin} as begin_tok) ;
-     cl=plist_until
-          (parser
-             [< '({it=`BracketEnd} as end_tok) >] ->
-           (fun rev_cl ->
-             let ttok_cl = List.rev rev_cl in
-             let ttok_text = Fmt.(str "{%a}" (list ~sep:nop pp_tex) ttok_cl) in
-             let ttok_loc = Ploc.encl begin_tok.loc end_tok.loc in
-             {it=`Bracket ttok_cl; text=ttok_text; loc = ttok_loc}))
-          pa_child
- >] -> cl
+    | [< '({it=`Escape} as tok1) ; '({it=`CommandName} as tok2) ; strm >] ->
+        [< '(tok1: CG.t token :> t token) ; '(tok2 : CG.t token :> t token) ; conv strm >]
 
-let stream strm =
-  let rec conv  = parser
-      [< '({it=`GroupEnd} as tok) >] ->
-      Fmt.(raise_failwithf tok.loc "CoalesceGroups: top-level GroupEnd without matching GroupBegin")
-    | [< '({it=`BracketEnd} as tok) >] ->
-      Fmt.(raise_failwithf tok.loc "CoalesceGroups: top-level BracketEnd without matching BracketBegin")
-    | [< c = conv_child >] -> [< 'c ; conv strm >]
+    | [< '({it=`Escape} as tok1) ; strm >] ->
+        [< '(tok1: CG.t token :> t token) ; conv strm >]
+
+    | [< '({it=`Group _} as tok) ; strm >] -> [< '(conv1 tok) ; conv strm >]
+    | [< '({it=`Bracket _} as tok) ; strm >] -> [< '(conv1 tok) ; conv strm >]
+
+    | [< 'c ; strm >] -> [< '(c : CG.t token :> t token) ; conv strm >]
     | [< >] -> [< >]
 
-  and conv_child = parser
-    | [< c = pa_group ~pa_child:conv_child >] -> c
-    | [< c = pa_bracket ~pa_child:conv_child >] -> c
-    | [< 't >] -> (t : EM.t token :> t token)
+  and conv1 = function
+      {it=`Group l} as tok -> {it=`CommandGroup (conv_list l); text = tok.text ; loc = tok.loc}
+    | {it=`Bracket l} as tok -> {it=`CommandBracket (conv_list l); text = tok.text ; loc = tok.loc}
+    | _ -> assert false
+
+  and conv_list l =
+    l |> Std.stream_of_list |> conv |> Std.list_of_stream
 
   in conv strm
 
 end
- *)
+

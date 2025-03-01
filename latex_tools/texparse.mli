@@ -2,6 +2,10 @@
 
 open Latex_tokens
 
+val plist_until :
+  ('a Stream.t -> 'b list -> 'c) ->
+  ('a Stream.t -> 'b) -> 'a Stream.t -> 'c
+
 module StripSpaceAfterBeginEnd :
   sig
     type t = [%import: Latex_tokens.t][@@deriving show { with_path = false }, eq]
@@ -31,9 +35,6 @@ module CoalesceGroups :
     type t = [ EM.t | `Group of t token list |  `Bracket of t token list ][@@deriving show { with_path = false }, eq]
 
     val pp_tex : t token Fmt.t
-    val plist_until :
-      ('a Stream.t -> 'b list -> 'c) ->
-      ('a Stream.t -> 'b) -> 'a Stream.t -> 'c
     val pa_group :
       pa_child:(EM.t Latex_tokens.token
                 Stream.t -> t token) ->
@@ -46,4 +47,13 @@ module CoalesceGroups :
       t token
     val stream :
       EM.t token Stream.t -> t token Stream.t
+  end
+
+module Commands :
+  sig
+module CG = CoalesceGroups
+type t = [ CG.t | `CommandGroup of t token list |  `CommandBracket of t token list | `Command of string * t token list * t token list ][@@deriving show { with_path = false }, eq]
+
+    val stream :
+      cmdmap:(string * (int * int)) list -> CG.t token Stream.t -> t token Stream.t
   end
