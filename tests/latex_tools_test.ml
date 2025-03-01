@@ -347,7 +347,7 @@ let test_parse_commands ctxt =
                    text = "{a}"; loc = Ploc.dummy }
                ])
              );
-         text = "\\ref({a})"; loc = Ploc.dummy };
+         text = "\\ref{a}"; loc = Ploc.dummy };
        { it = `Escape; text = "\\"; loc = Ploc.dummy };
        { it = `CommandName; text = "label"; loc = Ploc.dummy };
        { it = `CommandGroup ([{ it = `Text; text = "b"; loc = Ploc.dummy }]);
@@ -362,7 +362,7 @@ let test_parse_commands ctxt =
                    text = "{a}"; loc = Ploc.dummy }
                ])
              );
-         text = "\\ref({a})"; loc = Ploc.dummy };
+         text = "\\ref{a}"; loc = Ploc.dummy };
        { it =
            `Command (
                ("label", [],
@@ -370,9 +370,50 @@ let test_parse_commands ctxt =
                    text = "{b}"; loc = Ploc.dummy }
                ])
              );
-         text = "\\label({b})"; loc = Ploc.dummy }
+         text = "\\label{b}"; loc = Ploc.dummy }
       ]
       (doit [("ref",(1,0)); ("label",(1,0))] {|\ref{a}\label{b}|})
+  ; assert_equal ~cmp ~printer
+      [{ it =
+           `Command (
+               ("foo",
+                [{ it = `CommandBracket ([{ it = `Text; text = "x"; loc = Ploc.dummy }]);
+                   text = "{x}"; loc = Ploc.dummy }
+                ],
+                [{ it = `CommandGroup ([{ it = `Text; text = "a"; loc = Ploc.dummy }]);
+                   text = "{a}"; loc = Ploc.dummy }
+               ])
+             );
+         text = "\\foo[x]{a}"; loc = Ploc.dummy }
+      ]
+      (doit [("foo",(2,1))] {|\foo[x]{a}|})
+  ; assert_equal ~cmp ~printer
+      [{ it =
+           `Command (
+               ("x", [],
+                [{ it =
+                     `CommandGroup (
+                         [{ it =
+                              `Command (
+                                  ("ref", [],
+                                   [{ it =
+                                        `CommandGroup ([{ it = `Text; text = "a"; loc = Ploc.dummy }]);
+                                      text = "{a}"; loc = Ploc.dummy }
+                                  ])
+                                );
+                            text = "\\ref{a}"; loc = Ploc.dummy };
+                          { it = `Escape; text = "\\"; loc = Ploc.dummy };
+                          { it = `CommandName; text = "label"; loc = Ploc.dummy };
+                          { it = `CommandGroup ([{ it = `Text; text = "b"; loc = Ploc.dummy }]);
+                            text = "{b}"; loc = Ploc.dummy }
+                         ]
+                       );
+                   text = "{\\ref{a}\\label{b}}"; loc = Ploc.dummy }
+               ])
+             );
+         text = "\\x{\\ref{a}\\label{b}}"; loc = Ploc.dummy }
+      ]
+      (doit [("x",(1,0));("ref",(1,0))] {|\x{\ref{a}\label{b}}|})
 
 let suite = "Test latex_tools" >::: [
       "tokens"   >:: test_tokens

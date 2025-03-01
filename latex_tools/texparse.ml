@@ -155,6 +155,39 @@ module CoalesceGroups = struct
 module EM = MarkEnvironmentBeginEnd
 type t = [ EM.t | `Group of t token list |  `Bracket of t token list ][@@deriving show { with_path = false }, eq]
 
+let upcast (x : t) : EM.t =
+  (match x with
+    `Escape -> `Escape
+  | `GroupBegin -> `GroupBegin
+  | `GroupEnd -> `GroupEnd
+  | `Comment -> `Comment
+  | `MergedSpacer -> `MergedSpacer
+  | `EscapedComment -> `EscapedComment
+  | `MathSwitch -> `MathSwitch
+  | `DisplayMathSwitch -> `DisplayMathSwitch
+  | `MathGroupBegin -> `MathGroupBegin
+  | `MathGroupEnd -> `MathGroupEnd
+  | `DisplayMathGroupBegin -> `DisplayMathGroupBegin
+  | `DisplayMathGroupEnd -> `DisplayMathGroupEnd
+  | `LineBreak -> `LineBreak
+  | `CommandName -> `CommandName
+  | `Text -> `Text
+  | `BracketBegin -> `BracketBegin
+  | `BracketEnd -> `BracketEnd
+  | `ParenBegin -> `ParenBegin
+  | `ParenEnd -> `ParenEnd
+  | `PunctuationCommandName -> `PunctuationCommandName
+  | `SizeCommand -> `SizeCommand
+  | `Spacer -> `Spacer
+  | `EOF -> `EOF
+  | `EnvironBegin s -> `EnvironBegin s
+  | `EnvironEnd s -> `EnvironEnd s
+  | `Group _ -> failwith "CoalesceGroup.upcast: `Group should never occur"
+  | `Bracket _ -> failwith "CoalesceGroup.upcast: `Bracke should never occur")[@warnerror "+8"]
+
+let upcast_token t =
+  { it = upcast t.it ; text = t.text ; loc = t.loc }
+
 let rec pp_tex pps (t : t token) =
   match t with
     {it=`Group cl} ->
@@ -208,8 +241,9 @@ let stream strm =
 end
 
 module Commands = struct
+module EM = MarkEnvironmentBeginEnd
 module CG = CoalesceGroups
-type t = [ CG.t | `CommandGroup of t token list |  `CommandBracket of t token list | `Command of string * t token list * t token list ][@@deriving show { with_path = false }, eq]
+type t = [ EM.t | `CommandGroup of t token list |  `CommandBracket of t token list | `Command of string * t token list * t token list ][@@deriving show { with_path = false }, eq]
 
 let wrap (l,r) ppx pps x = Fmt.(pf pps "%s%a%s" l ppx x r)
 
@@ -217,8 +251,8 @@ let rec pp_tex pps (t : t token) =
   match t with
     {it=`Command(name, optargs, args)} ->
      Fmt.(pf pps "\\%s%a%a" name
-            (list ~sep:nop (wrap ("[","]") pp_tex)) optargs
-            (list ~sep:nop (wrap ("(",")") pp_tex)) args)
+            (list ~sep:nop pp_tex) optargs
+            (list ~sep:nop pp_tex) args)
   | {it=`CommandGroup cl} ->
      Fmt.(pf pps "{%a}" (list ~sep:nop pp_tex) cl)
   | {it=`CommandBracket cl} ->
@@ -232,32 +266,32 @@ let stream ~cmdmap (strm : CG.t token Stream.t) : t token Stream.t =
         begin
           let name = tok2.text in
           match List.assoc name cmdmap with
-          | (m,n) when 0<=n && n <= 1 && 0 < m ->
+          | (m,n) when 0<=n && n <= 1 && n <= m ->
              (parser
                 [< optargs = plist_atmostn n (parser [< '{it=`Bracket _} as t >] -> t) ;
-                 args = plistn m (parser [< '{it=`Group _} as t >] -> t) ; strm >] ->
+                 args = plistn (m-n) (parser [< '{it=`Group _} as t >] -> t) ; strm >] ->
               let optargs = List.map conv1 optargs in
               let args = List.map conv1 args in
               let ttok_text = Fmt.(str "\\%s%a%a" name
-                                     (list ~sep:nop (wrap ("[","]") pp_tex)) optargs
-                                     (list ~sep:nop (wrap ("(",")") pp_tex)) args) in
+                                     (list ~sep:nop pp_tex) optargs
+                                     (list ~sep:nop pp_tex) args) in
               let ttok_loc = Ploc.encl tok1.loc (Std.last args).loc in
               [< '{it=`Command (name, optargs, args); text=ttok_text; loc = ttok_loc} ; conv strm >]) strm
 
           | (m,n) ->
-             Fmt.(failwithf "Commands.stream: commands MUST have at least one argument, and may have at most one optional argument (not (%d,%d))" m n)
+             Fmt.(failwithf "Commands.stream: #optional #args=%d, #args=%d: #optional must be in [0,1); #optional <= #args" m n)
         end
 
     | [< '({it=`Escape} as tok1) ; '({it=`CommandName} as tok2) ; strm >] ->
-        [< '(tok1: CG.t token :> t token) ; '(tok2 : CG.t token :> t token) ; conv strm >]
+        [< '(tok1: EM.t token :> t token) ; '(tok2 : EM.t token :> t token) ; conv strm >]
 
     | [< '({it=`Escape} as tok1) ; strm >] ->
-        [< '(tok1: CG.t token :> t token) ; conv strm >]
+        [< '(tok1: EM.t token :> t token) ; conv strm >]
 
     | [< '({it=`Group _} as tok) ; strm >] -> [< '(conv1 tok) ; conv strm >]
     | [< '({it=`Bracket _} as tok) ; strm >] -> [< '(conv1 tok) ; conv strm >]
 
-    | [< 'c ; strm >] -> [< '(c : CG.t token :> t token) ; conv strm >]
+    | [< 'c ; strm >] -> [< '((CG.upcast_token c) : EM.t token :> t token) ; conv strm >]
     | [< >] -> [< >]
 
   and conv1 = function
@@ -271,4 +305,3 @@ let stream ~cmdmap (strm : CG.t token Stream.t) : t token Stream.t =
   in conv strm
 
 end
-
