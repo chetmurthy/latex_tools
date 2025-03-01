@@ -327,6 +327,53 @@ let test_coalesce_group ctxt =
       ]
       (doit {|\ref{foo}\label{bar}|})
 
+let test_parse_commands ctxt =
+  let cmp = [%eq: Commands.t token list] in
+  let printer = [%show: Commands.t token list] in
+  let doit cmdmap s =
+    s
+    |> Tools.stream_of_string
+    |> StripSpaceAfterBeginEnd.stream
+    |> MarkEnvironmentBeginEnd.stream
+    |> CoalesceGroups.stream
+    |> Commands.stream ~cmdmap
+    |> Std.list_of_stream in
+  ()
+  ; assert_equal ~cmp ~printer
+      [{ it =
+           `Command (
+               ("ref", [],
+                [{ it = `CommandGroup ([{ it = `Text; text = "a"; loc = Ploc.dummy }]);
+                   text = "{a}"; loc = Ploc.dummy }
+               ])
+             );
+         text = "\\ref({a})"; loc = Ploc.dummy };
+       { it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "label"; loc = Ploc.dummy };
+       { it = `CommandGroup ([{ it = `Text; text = "b"; loc = Ploc.dummy }]);
+         text = "{b}"; loc = Ploc.dummy }
+      ]
+      (doit [("ref",(1,0))] {|\ref{a}\label{b}|})
+  ; assert_equal ~cmp ~printer
+      [{ it =
+           `Command (
+               ("ref", [],
+                [{ it = `CommandGroup ([{ it = `Text; text = "a"; loc = Ploc.dummy }]);
+                   text = "{a}"; loc = Ploc.dummy }
+               ])
+             );
+         text = "\\ref({a})"; loc = Ploc.dummy };
+       { it =
+           `Command (
+               ("label", [],
+                [{ it = `CommandGroup ([{ it = `Text; text = "b"; loc = Ploc.dummy }]);
+                   text = "{b}"; loc = Ploc.dummy }
+               ])
+             );
+         text = "\\label({b})"; loc = Ploc.dummy }
+      ]
+      (doit [("ref",(1,0)); ("label",(1,0))] {|\ref{a}\label{b}|})
+
 let suite = "Test latex_tools" >::: [
       "tokens"   >:: test_tokens
     ; "strip spaces after begin/end (stream)"   >:: test_strip_spaces
@@ -337,6 +384,7 @@ let suite = "Test latex_tools" >::: [
     ; "extract environments (stream)" >:: test_extract_environments
     ; "partial extract environments (stream)" >:: test_partial_extract_environments
     ; "coalesce groups (stream)" >:: test_coalesce_group
+    ; "parse commands (stream)" >:: test_parse_commands
     ]
 
 let _ = 
