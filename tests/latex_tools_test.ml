@@ -342,6 +342,41 @@ let test_partial_extract_environments ~list ctxt =
       ["\\begin{foo}..\\begin{bar}..\\end{bar}..\\end{foo}"]
       (doit ["foo"] {|\begin{foo}..\begin{bar}..\end{bar}..\end{foo}|})
 
+
+let test_coalesce_group ~list ctxt =
+  let cmp = [%eq: CoalesceGroups.t token list] in
+  let printer = [%show: CoalesceGroups.t token list] in
+  let doit_stream s =
+    s
+    |> Tools.stream_of_string
+    |> StripSpaceAfterBeginEnd.stream
+    |> MarkEnvironmentBeginEnd.stream
+    |> CoalesceGroups.stream
+    |> Std.list_of_stream in
+  let doit_list s =
+    s
+    |> Tools.list_of_string
+    |> StripSpaceAfterBeginEnd.list
+    |> MarkEnvironmentBeginEnd.list
+    |> CoalesceGroups.list in
+  let doit = if list then doit_list else doit_stream in
+  ()
+  ; assert_equal ~cmp ~printer
+      [{ it = `Group ([{ it = `Text; text = "foo bar buzz"; loc = Ploc.dummy }]);
+         text = "{foo bar buzz}"; loc = Ploc.dummy }]
+      (doit {|{foo bar buzz}|})
+  ; assert_equal ~cmp ~printer
+      [{ it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "ref"; loc = Ploc.dummy };
+       { it = `Group ([{ it = `Text; text = "foo"; loc = Ploc.dummy }]);
+         text = "{foo}"; loc = Ploc.dummy };
+       { it = `Escape; text = "\\"; loc = Ploc.dummy };
+       { it = `CommandName; text = "label"; loc = Ploc.dummy };
+       { it = `Group ([{ it = `Text; text = "bar"; loc = Ploc.dummy }]);
+         text = "{bar}"; loc = Ploc.dummy }
+      ]
+      (doit {|\ref{foo}\label{bar}|})
+
 let suite = "Test latex_tools" >::: [
       "tokens"   >:: test_tokens
     ; "strip spaces after begin/end (stream)"   >:: test_strip_spaces ~list:false
@@ -358,6 +393,8 @@ let suite = "Test latex_tools" >::: [
     ; "extract environments (list)" >:: test_extract_environments ~list:true
     ; "partial extract environments (stream)" >:: test_partial_extract_environments ~list:false
     ; "partial extract environments (list)" >:: test_partial_extract_environments ~list:true
+    ; "coalesce groups (stream)" >:: test_coalesce_group ~list:false
+    ; "coalesce groups (list)" >:: test_coalesce_group ~list:true
     ]
 
 let _ = 
