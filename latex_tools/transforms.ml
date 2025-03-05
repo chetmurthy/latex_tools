@@ -21,9 +21,7 @@ let read_latex ~cmdmap (fname,ic) =
 let process_latex_file ~cmdmap f fname =
   let ic = open_in fname in
   let strm = read_latex ~cmdmap (fname,ic) in
-  let rv = f strm in
-  close_in ic ;
-  rv
+  [< f strm ; (close_in ic ; [< >]) >]
 
 let filename_acceptor ?(verbose=false) ~only_expand ~exclude () =
   if only_expand <> [] && exclude <> [] then
@@ -49,19 +47,19 @@ let filename_acceptor ?(verbose=false) ~only_expand ~exclude () =
 
 let cmdmap = [("include",(1,0)); ("import",(1,0))]
 
-let rec pp_tex_expanding ?(verbose=false) ~recursively ~filename_acceptor pps tok =
+let rec expand_token ?(verbose=false) ~recursively ~filename_acceptor tok =
   let cmdmap = if recursively then cmdmap else [] in
   match (tok : Commands.t token) with
     {it=`Command(("include"|"input"), [], [{it=`CommandGroup [{it=`Text; text=fname}]}])} ->
      let fname = if not (Std.ends_with ~pat:".tex" fname) then fname^".tex" else fname in
      if filename_acceptor fname then
        process_latex_file ~cmdmap (fun strm ->
-           Stream.iter (pp_tex_expanding ~verbose ~recursively ~filename_acceptor pps) strm) fname
-     else Commands.pp_tex pps tok
-  | tok -> Commands.pp_tex pps tok
+           Std.stream_concat_map (expand_token ~verbose ~recursively ~filename_acceptor) strm) fname
+     else [< 'tok >]
+  | tok -> [< 'tok >]
 
-let file ?(verbose=false) ~recursively ~only_expand ~exclude fname pps =
+let stream ?(verbose=false) ~recursively ~only_expand ~exclude fname =
   let filename_acceptor = filename_acceptor ~verbose ~only_expand ~exclude () in
   process_latex_file ~cmdmap (fun strm ->
-        Stream.iter (pp_tex_expanding ~verbose ~recursively ~filename_acceptor pps) strm) fname
+        Std.stream_concat_map (expand_token ~verbose ~recursively ~filename_acceptor) strm) fname
 end

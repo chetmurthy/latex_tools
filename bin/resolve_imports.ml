@@ -33,12 +33,13 @@ let resolve_imports fname =
        let oc = new_fname |> open_out in
        (true, oc, oc |> Format.formatter_of_out_channel)
     | (true, f) -> failwith "Cannot specify in-place ('-i') and an output file '-o')" in
-  ExpandImports.file
+  ExpandImports.stream
     ~verbose:!verbose
     ~recursively:!recursively
     ~exclude:!exclude
     ~only_expand:!only_expand
-    fname pps ;
+    fname
+  |> Stream.iter (Commands.pp_tex pps) ;
   Format.pp_print_flush pps () ;
   flush oc;
   if must_close then close_out oc ;
