@@ -58,8 +58,12 @@ let rec expand_token ?(verbose=false) ~recursively ~filename_acceptor tok =
      else [< 'tok >]
   | tok -> [< 'tok >]
 
-let stream ?(verbose=false) ~recursively ~only_expand ~exclude fname =
+let stream ?(verbose=false) ~recursively ~only_expand ~exclude strm =
   let filename_acceptor = filename_acceptor ~verbose ~only_expand ~exclude () in
+  Std.stream_concat_map (expand_token ~verbose ~recursively ~filename_acceptor) strm
+
+let file ?(verbose=false) ~recursively ~only_expand ~exclude fname =
   process_latex_file ~cmdmap (fun strm ->
-        Std.stream_concat_map (expand_token ~verbose ~recursively ~filename_acceptor) strm) fname
+      stream ~verbose ~recursively ~only_expand ~exclude strm
+    ) fname
 end

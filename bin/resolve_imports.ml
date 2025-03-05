@@ -33,7 +33,7 @@ let resolve_imports fname =
        let oc = new_fname |> open_out in
        (true, oc, oc |> Format.formatter_of_out_channel)
     | (true, f) -> failwith "Cannot specify in-place ('-i') and an output file '-o')" in
-  ExpandImports.stream
+  ExpandImports.file
     ~verbose:!verbose
     ~recursively:!recursively
     ~exclude:!exclude
