@@ -1,3 +1,7 @@
-extract_environments.cmo extract_environments.cmi extract_environments.cmx: ../local-install/lib/latex_tools/META ../local-install/lib/latex_tools/META
+extract_environments.cmo count_references.cmo resolve_imports.cmo extract_environments.cmi count_references.cmi resolve_imports.cmi extract_environments.cmx count_references.cmx resolve_imports.cmx: ../local-install/lib/latex_tools/META ../local-install/lib/latex_tools/META
 extract_environments.cmo :
 extract_environments.cmx :
+count_references.cmo :
+count_references.cmx :
+resolve_imports.cmo :
+resolve_imports.cmx :

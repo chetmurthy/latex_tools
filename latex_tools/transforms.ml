@@ -45,7 +45,7 @@ let filename_acceptor ?(verbose=false) ~only_expand ~exclude () =
     rv)
 ;;
 
-let cmdmap = [("include",(1,0)); ("import",(1,0))]
+let cmdmap = [("include",(1,0)); ("input",(1,0))]
 
 let rec expand_token ?(verbose=false) ~recursively ~filename_acceptor tok =
   let cmdmap = if recursively then cmdmap else [] in
