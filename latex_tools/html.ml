@@ -39,7 +39,13 @@ let mk s =
     None -> STRING s
   | Some(ns, s) -> GENERATED (int_of_string ns, s)
 
+let is_generated = function
+    GENERATED _ -> true
+  | _ -> false
+
 end
+
+let pp_hum_href pps (fpart, frag) = Fmt.(pf pps "%s#%a" fpart Fragment.pp_hum frag)
 
 let hrefs_of strm =
   let rec hrec = parser
@@ -121,6 +127,15 @@ let resolve_href file_basenames (basef, raw_ids) x =
        Some (fpart, Fragment.mk "")
      else None
 
+let suffix_of_generated =
+  let open Fragment in
+  function (_, GENERATED (_, s)) -> s
+let filter_generated_ids l =
+  let open Fragment in
+  l |> List.filter_map (function
+       (_, STRING _) -> None
+     | (_, (GENERATED _) as id) -> Some id)
+
 let check_ids l =
   if not(Utils.distinct (List.map snd l)) then begin
       Fmt.(pf stdout "check_ids: IDs are not distinct") ;
@@ -133,11 +148,7 @@ let check_ids l =
                    )
     end ;
   let open Fragment in
-  let suffix_of_generated = function (_, GENERATED (_, s)) -> s in
-  let generated_ids =
-    l |> List.filter_map (function
-         (_, STRING _) -> None
-       | (_, (GENERATED _) as id) -> Some id) in
+  let generated_ids = filter_generated_ids l in
   if not (Utils.distinct (List.map suffix_of_generated generated_ids)) then begin
       Fmt.(pf stdout "check_ids: generated SUFFIXES of IDs are not distinct\n") ;
       let partl = Utils.nway_partition suffix_of_generated Stdlib.compare generated_ids in
@@ -146,7 +157,7 @@ let check_ids l =
                      let suff = suffix_of_generated(List.hd part) in
                      Fmt.(pf stdout "==== %s ====\n" suff) ;
                      part |> List.iter (fun (f,frag) ->
-                                 Fmt.(pf stdout "%s#%a\n" f Fragment.pp_hum frag))
+                                 Fmt.(pf stdout "%a\n" pp_hum_href (f,frag)))
                    )
     end
     
@@ -170,6 +181,12 @@ let diagnose fl =
   let idset = MHS.ofList ids 23 in
   let ids_frag2file = MHM.ofList 23 (List.map (fun (f, frag) -> (frag, f)) ids) in
 
+  let ids_suffix2id =
+      ids
+      |> filter_generated_ids
+      |> List.map (fun id -> (suffix_of_generated id, id))
+      |> MHM.ofList 23 in
+
   check_ids ids ;
   
   hrefs_ids_list
@@ -178,15 +195,21 @@ let diagnose fl =
        hrefs |> List.iter (fun (basef, frag as href) ->
            if not(MHS.mem href idset) then
              if basef <> "" then
-               Fmt.(pf stdout "REALLY BAD: href %s#%a not found among IDs\n"
-                      basef Fragment.pp_hum frag)
+               Fmt.(pf stdout "REALLY BAD: href %a not found among IDs\n"
+                      pp_hum_href href)
              else if MHM.in_dom ids_frag2file frag then
-               Fmt.(pf stdout "FIXABLE ERROR: href #%a should have been %s#%a\n"
-                      Fragment.pp_hum frag
-                      (MHM.map ids_frag2file frag) Fragment.pp_hum frag)
-             else Fmt.(pf stdout "UNFIXABLE ERROR: (file %a) href #%a not found anywhere in files\n"
+               Fmt.(pf stdout "FIXABLE ERROR: href %a should have been %a\n"
+                      pp_hum_href href
+                      pp_hum_href (MHM.map ids_frag2file frag, frag))
+             else if Fragment.is_generated frag &&
+                       MHM.in_dom ids_suffix2id (suffix_of_generated href) then
+               Fmt.(pf stdout "FIXABLE ERROR: href %a MIGHT ought to have been %a\n"
+                      pp_hum_href href
+                      pp_hum_href (MHM.map ids_suffix2id (suffix_of_generated href)))
+
+             else Fmt.(pf stdout "UNFIXABLE ERROR: (file %a) href %a not found anywhere in files\n"
                        Dump.string f
-                       Fragment.pp_hum frag)
+                       pp_hum_href href)
                   )
                     )
 
