@@ -184,7 +184,7 @@ let process_hrefs_ids file_basenames (f, (raw_hrefs, raw_ids)) =
 let fst_o_snd x = fst (snd x)
 let snd_o_snd x = snd (snd x)
 
-let diagnose ~verbose fl =
+let diagnose ~verbose ~fixup fl =
   let file_basenames = List.map Filename.basename fl in
   let raw_hrefs_ids =
     fl |> List.map (fun f ->
@@ -203,6 +203,9 @@ let diagnose ~verbose fl =
       |> List.iter (fun (frag, fpart) ->
              Fmt.(pf stdout "%a: %s\n" Fragment.pp_hum frag fpart)) ;
     end ;
+
+  Fmt.(pf stdout "%s\n" (String.make 80 '=')) ;
+  Fmt.(pf stdout "%s\n" (String.make 80 '=')) ;
 
   hrefs_ids_list
   |> List.iter (fun (f, (hrefs, _)) ->

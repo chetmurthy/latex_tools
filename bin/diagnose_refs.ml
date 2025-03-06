@@ -8,6 +8,7 @@ open Texparse
 open Tools
 
 let verbose = ref false
+let fixup = ref false
 let rev_extra_args = ref []
 ;;
 
@@ -18,12 +19,15 @@ if not !Sys.interactive then begin
     Arg.(parse [
              "-verbose", (Arg.Set verbose),
              "verbose"
+           ; "-fixup", (Arg.Set verbose),
+             "fixup the files (in-place update) for those problems that this tool thinks are fixable"
            ]
            (Std.push rev_extra_args)
            "diagnose_refs <args> <input-files>") ;
 
     let input_files = List.rev !rev_extra_args  in
     let verbose = !verbose in
-    Html.DiagnoseRefs.diagnose ~verbose input_files
+    let fixup = !fixup in
+    Html.DiagnoseRefs.diagnose ~verbose ~fixup input_files
   end
 ;;
