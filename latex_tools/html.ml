@@ -136,31 +136,44 @@ let filter_generated_ids l =
        (_, STRING _) -> None
      | (_, (GENERATED _) as id) -> Some id)
 
-let check_ids l =
-  if not(Utils.distinct (List.map snd l)) then begin
-      Fmt.(pf stdout "check_ids: IDs are not distinct") ;
-      let partl = Utils.nway_partition snd Stdlib.compare l in
-      let repeats = List.filter (function p -> List.length p > 1) partl in
+let ids_to_frag2file l =
+  let partl = Utils.nway_partition snd Stdlib.compare l in
+  let repeats = List.filter (function p -> List.length p > 1) partl in
+  if repeats <> [] then begin
+      Fmt.(pf stdout "================ ids_to_frag2file: IDs are not distinct ================\n") ;
       repeats |> List.iter (fun part ->
                      let fpart = fst (List.hd part) in
                      Fmt.(pf stdout "==== %s ====\n" fpart) ;
                      part |> List.iter (fun (_,frag) -> Fmt.(pf stdout "%a\n" Fragment.pp_hum frag))
                    )
     end ;
+  let m =
+    partl
+    |> List.map List.hd
+    |> List.map (fun (f, frag) -> (frag, f))
+    |> MHM.ofList 23 in
+  (repeats,m)
+
+let ids_to_suffix2id l =
   let open Fragment in
   let generated_ids = filter_generated_ids l in
-  if not (Utils.distinct (List.map suffix_of_generated generated_ids)) then begin
-      Fmt.(pf stdout "check_ids: generated SUFFIXES of IDs are not distinct\n") ;
-      let partl = Utils.nway_partition suffix_of_generated Stdlib.compare generated_ids in
-      let repeats = List.filter (function p -> List.length p > 1) partl in
+  let partl = Utils.nway_partition suffix_of_generated Stdlib.compare generated_ids in
+  let repeats = List.filter (function p -> List.length p > 1) partl in
+  if repeats <> [] then begin
+      Fmt.(pf stdout "======== ids_to_suffix2id: generated SUFFIXES of IDs are not distinct ========\n") ;
       repeats |> List.iter (fun part ->
                      let suff = suffix_of_generated(List.hd part) in
                      Fmt.(pf stdout "==== %s ====\n" suff) ;
                      part |> List.iter (fun (f,frag) ->
                                  Fmt.(pf stdout "%a\n" pp_hum_href (f,frag)))
                    )
-    end
-    
+    end ;
+  let m =
+    partl
+    |> List.map List.hd
+    |> List.map (fun id -> (suffix_of_generated id, id))
+    |> MHM.ofList 23 in
+  (repeats, m)
 
 let process_hrefs_ids file_basenames (f, (raw_hrefs, raw_ids)) =
   let basef = Filename.basename f in
@@ -171,7 +184,7 @@ let process_hrefs_ids file_basenames (f, (raw_hrefs, raw_ids)) =
 let fst_o_snd x = fst (snd x)
 let snd_o_snd x = snd (snd x)
 
-let diagnose fl =
+let diagnose ~verbose fl =
   let file_basenames = List.map Filename.basename fl in
   let raw_hrefs_ids =
     fl |> List.map (fun f ->
@@ -179,16 +192,18 @@ let diagnose fl =
   let hrefs_ids_list = List.map (process_hrefs_ids file_basenames) raw_hrefs_ids in
   let ids = List.concat_map snd_o_snd hrefs_ids_list in
   let idset = MHS.ofList ids 23 in
-  let ids_frag2file = MHM.ofList 23 (List.map (fun (f, frag) -> (frag, f)) ids) in
-
-  let ids_suffix2id =
-      ids
-      |> filter_generated_ids
-      |> List.map (fun id -> (suffix_of_generated id, id))
-      |> MHM.ofList 23 in
-
-  check_ids ids ;
+  let _,ids_frag2file = ids_to_frag2file ids in
+  let _,ids_suffix2id = ids_to_suffix2id ids in
   
+  if verbose then begin
+      Fmt.(pf stdout "================ ids_frag2file ================\n") ;
+      ids_frag2file
+      |> MHM.toList
+      |> List.sort Stdlib.compare
+      |> List.iter (fun (frag, fpart) ->
+             Fmt.(pf stdout "%a: %s\n" Fragment.pp_hum frag fpart)) ;
+    end ;
+
   hrefs_ids_list
   |> List.iter (fun (f, (hrefs, _)) ->
          Fmt.(pf stdout "================ %s ================\n" f) ;

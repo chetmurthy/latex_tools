@@ -23,6 +23,7 @@ if not !Sys.interactive then begin
            "diagnose_refs <args> <input-files>") ;
 
     let input_files = List.rev !rev_extra_args  in
-    Html.DiagnoseRefs.diagnose input_files
+    let verbose = !verbose in
+    Html.DiagnoseRefs.diagnose ~verbose input_files
   end
 ;;
