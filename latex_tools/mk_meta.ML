@@ -14,13 +14,13 @@ Arg.(parse [
 
 Fmt.(pf stdout {|
 # Specifications for the "latex_tools" library:
-requires = "pcre2,camlp5,fmt,pa_ppx.base,pa_ppx.utils,latex_tools_runtime,camlp5.parser_quotations,pa_ppx_regexp.runtime,sedlex"
+requires = "pcre2,camlp5,fmt,pa_ppx.base,pa_ppx.utils,latex_tools_runtime,camlp5.parser_quotations,pa_ppx_regexp.runtime,sedlex,markup"
 version = "%s"
 description = "latex_tools: latex_tools library"
 
 # For linking
 package "link" (
-requires = "camlp5,fmt,pa_ppx.base.link,pa_ppx.utils,camlp5.parser_quotations.link,pa_ppx_regexp.runtime,sedlex"
+requires = "camlp5,fmt,pa_ppx.base.link,pa_ppx.utils,camlp5.parser_quotations.link,pa_ppx_regexp.runtime,sedlex,markup"
 archive(byte) = "latex_tools.cma"
 archive(native) = "latex_tools.cmxa"
 )
@@ -29,7 +29,7 @@ archive(native) = "latex_tools.cmxa"
 archive(byte,toploop) = "latex_tools.cma"
 
   # For the preprocessor itself:
-  requires(syntax,preprocessor) = "camlp5,fmt,pa_ppx.base,pa_ppx.utils,camlp5.parser_quotations,pa_ppx_regexp.runtime,sedlex"
+  requires(syntax,preprocessor) = "camlp5,fmt,pa_ppx.base,pa_ppx.utils,camlp5.parser_quotations,pa_ppx_regexp.runtime,sedlex,markup"
   archive(syntax,preprocessor,-native) = "latex_tools.cma"
   archive(syntax,preprocessor,native) = "latex_tools.cmxa"
 

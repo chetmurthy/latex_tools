@@ -276,7 +276,11 @@ and conv ~cmdmap = parser
               let ttok_text = Fmt.(str "\\%s%a%a" name
                                      (list ~sep:nop pp_tex) optargs
                                      (list ~sep:nop pp_tex) args) in
-              let ttok_loc = Ploc.encl tok1.loc (Std.last args).loc in
+              let ttok_loc =
+                if (m,n) = (0,0) then
+                  Ploc.encl tok1.loc tok2.loc
+                else
+                  Ploc.encl tok1.loc (Std.last args).loc in
               [< '{it=`Command (name, optargs, args); text=ttok_text; loc = ttok_loc} ; conv ~cmdmap strm >]) strm
 
           | (m,n) ->
@@ -314,3 +318,39 @@ and conv ~cmdmap = parser
 
 
 end
+
+(*
+module ExtractBibItems = struct
+type t = Commands.t[@@deriving show { with_path = false }, eq]
+
+let pa_bibitem = parser
+  [< '{it=`Command("bibitem", [arg1], [arg2])} ;
+     cl = plist_until
+       (parser
+          [< ?= [{it=`Command("bibitem", [_], [_])}] | [{it=`Command("newblock", [_], [_])}] >] -> raise Stream.Failure)
+
+let pa_bibliography = parser
+  [< '{it=`EnvironBegin "thebibiography"} ;
+     cl=plist_until
+          (parser
+             [< '{it=`EnvironEnd "thebibliography"} >] ->
+           (fun rev_cl -> List.rev rev_cl))
+          pa_bibitem
+ >] -> cl
+
+let stream ?(environs=[]) strm =
+  let name_pred n = environs = [] || List.mem n environs in
+  let rec conv  = parser
+      [< '({it=`EnvironEnd name'} as tok) when name_pred name' >] ->
+      Fmt.(raise_failwithf tok.loc "CoalesceEnvironments: top-level end-environment %s without matching begin-environment" name')
+    | [< c = conv_child >] -> [< 'c ; conv strm >]
+    | [< >] -> [< >]
+
+  and conv_child = parser
+    | [< c = pa_environment ~environs ~pa_child:conv_child >] -> c
+    | [< 't >] -> (t : EM.t token :> t token)
+
+  in conv strm
+
+end
+ *)
