@@ -25,6 +25,22 @@ let ids_of strm =
   | [< >] -> [< >]
   in hrec strm
 
+module Fragment = struct
+type t =
+  GENERATED of int * string
+| STRING of string
+
+let pp_hum pps = function
+    GENERATED (n, s) -> Fmt.(pf pps "x%d-%s" n s)
+  | STRING s -> Fmt.(pf pps "%s" s)
+
+let mk s =
+  match [%match {|^x([1-9]\d*)-(\d+)$|} / strings (!1,!2)] s with
+    None -> STRING s
+  | Some(ns, s) -> GENERATED (int_of_string ns, s)
+
+end
+
 let hrefs_of strm =
   let rec hrec = parser
     [< ' `Start_element ((_,"a"),args) ; strm >] ->
@@ -89,12 +105,12 @@ let resolve_href file_basenames (basef, raw_ids) x =
      Fmt.(failwithf "valid_local_href: really invalid href found: %a" Dump.string x)
   | [""; frag] ->
      if List.mem frag raw_ids then
-       Some (basef, frag)
-     else Some ("", frag)
+       Some (basef, Fragment.mk frag)
+     else Some ("", Fragment.mk frag)
   | [fpart; frag] ->
      let fpart = Filename.basename fpart in
      if List.mem fpart file_basenames then
-       Some (fpart, frag)
+       Some (fpart, Fragment.mk frag)
      else begin
          Fmt.(pf stderr "resolve_href: ignore foreign URL %s\n" x) ;
          None
@@ -102,24 +118,42 @@ let resolve_href file_basenames (basef, raw_ids) x =
   | [fpart] ->
      let fpart = Filename.basename fpart in
      if List.mem fpart file_basenames then
-       Some (fpart, "")
+       Some (fpart, Fragment.mk "")
      else None
 
 let check_ids l =
   if not(Utils.distinct (List.map snd l)) then begin
-    Fmt.(pf stdout "check_ids: IDs are not distinct") ;
-    let partl = Utils.nway_partition snd Stdlib.compare l in
-    let repeats = List.filter (function p -> List.length p > 1) partl in
-    repeats |> List.iter (fun part ->
-        let fpart = fst (List.hd part) in
-        Fmt.(pf stdout "==== %s ====\n" fpart) ;
-        part |> List.iter (fun (_,frag) -> Fmt.(pf stdout "%s\n" frag))
-      )
-  end
+      Fmt.(pf stdout "check_ids: IDs are not distinct") ;
+      let partl = Utils.nway_partition snd Stdlib.compare l in
+      let repeats = List.filter (function p -> List.length p > 1) partl in
+      repeats |> List.iter (fun part ->
+                     let fpart = fst (List.hd part) in
+                     Fmt.(pf stdout "==== %s ====\n" fpart) ;
+                     part |> List.iter (fun (_,frag) -> Fmt.(pf stdout "%a\n" Fragment.pp_hum frag))
+                   )
+    end ;
+  let open Fragment in
+  let suffix_of_generated = function (_, GENERATED (_, s)) -> s in
+  let generated_ids =
+    l |> List.filter_map (function
+         (_, STRING _) -> None
+       | (_, (GENERATED _) as id) -> Some id) in
+  if not (Utils.distinct (List.map suffix_of_generated generated_ids)) then begin
+      Fmt.(pf stdout "check_ids: generated SUFFIXES of IDs are not distinct\n") ;
+      let partl = Utils.nway_partition suffix_of_generated Stdlib.compare generated_ids in
+      let repeats = List.filter (function p -> List.length p > 1) partl in
+      repeats |> List.iter (fun part ->
+                     let suff = suffix_of_generated(List.hd part) in
+                     Fmt.(pf stdout "==== %s ====\n" suff) ;
+                     part |> List.iter (fun (f,frag) ->
+                                 Fmt.(pf stdout "%s#%a\n" f Fragment.pp_hum frag))
+                   )
+    end
+    
 
 let process_hrefs_ids file_basenames (f, (raw_hrefs, raw_ids)) =
   let basef = Filename.basename f in
-  let ids = raw_ids |> List.map (fun frag -> (basef, frag)) in
+  let ids = raw_ids |> List.map (fun frag -> (basef, Fragment.mk frag)) in
   let hrefs = raw_hrefs |> List.filter_map (resolve_href file_basenames (basef, raw_ids)) in
   (f, (hrefs, ids))
 
@@ -144,12 +178,15 @@ let diagnose fl =
        hrefs |> List.iter (fun (basef, frag as href) ->
            if not(MHS.mem href idset) then
              if basef <> "" then
-               Fmt.(pf stdout "REALLY BAD: href %s#%s not found among IDs\n" basef frag)
+               Fmt.(pf stdout "REALLY BAD: href %s#%a not found among IDs\n"
+                      basef Fragment.pp_hum frag)
              else if MHM.in_dom ids_frag2file frag then
-               Fmt.(pf stdout "FIXABLE ERROR: href #%s should have been %s#%s\n" frag (MHM.map ids_frag2file frag) frag)
-             else Fmt.(pf stdout "UNFIXABLE ERROR: (file %a) href #%s not found anywhere in files\n"
+               Fmt.(pf stdout "FIXABLE ERROR: href #%a should have been %s#%a\n"
+                      Fragment.pp_hum frag
+                      (MHM.map ids_frag2file frag) Fragment.pp_hum frag)
+             else Fmt.(pf stdout "UNFIXABLE ERROR: (file %a) href #%a not found anywhere in files\n"
                        Dump.string f
-                         frag)
+                       Fragment.pp_hum frag)
                   )
                     )
 
