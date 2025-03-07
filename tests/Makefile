@@ -2,7 +2,7 @@ WD=$(shell pwd)
 TOP=..
 include $(TOP)/config/Makefile.sub
 
-PACKAGES := $(PACKAGES),latex_tools,ounit2,pa_ppx.utils,latex_tools.link,pa_ppx.testutils,pp-binary-ints
+PACKAGES := $(PACKAGES),latex_tools,ounit2,pa_ppx.utils,pa_ppx.testutils,pp-binary-ints
 
 ML= \
 	utils_test.ml \

@@ -8,10 +8,31 @@ open Ppxutil
 open Texparse
 open Parser_utils
 open Tools
+open Rresult
+
+module MarkupIO = struct
+open Markup
+  
+let stream_of_kstream ks = Stream.from (fun _ -> Markup.next ks)
+
+let read_markup f =
+  let (cs, closer) = file f in
+  let strm = cs |> parse_html |> signals |> stream_of_kstream in
+  [< strm ; (closer() ; [< >]) >]
+
+let write_markup f strm =
+  let open Markup in
+  let oc = open_out f in
+  let l = Std.list_of_stream strm in
+      l
+      |> of_list
+      |> write_html
+      |> to_channel oc ;
+      close_out oc
+end
+
 
 module DiagnoseRefs = struct
-
-let stream_of_kstream ks = Stream.from (fun _ -> Markup.next ks)
 
 let ids_of strm =
   let rec hrec = parser
@@ -60,20 +81,14 @@ let hrefs_of strm =
   in hrec strm
 
 let extract_hrefs f =
-  let open Markup in
-  let (cs, closer) = file f in
-  let strm = cs |> parse_html |> signals |> stream_of_kstream in
-  let hrefs = strm |> hrefs_of |> Std.list_of_stream in
-  closer() ;
-  hrefs
+  let open MarkupIO in
+  let strm = read_markup f in
+  strm |> hrefs_of |> Std.list_of_stream
 
 let extract_ids f =
-  let open Markup in
-  let (cs, closer) = file f in
-  let strm = cs |> parse_html |> signals |> stream_of_kstream in
-  let ids = strm |> ids_of |> Std.list_of_stream in
-  closer() ;
-  ids
+  let open MarkupIO in
+  let strm = read_markup f in
+  strm |> ids_of |> Std.list_of_stream
 
 (** How to diagnose broken-refs in a collection of HTML files:
 
@@ -184,7 +199,24 @@ let process_hrefs_ids file_basenames (f, (raw_hrefs, raw_ids)) =
 let fst_o_snd x = fst (snd x)
 let snd_o_snd x = snd (snd x)
 
-let diagnose ~verbose ~fixup fl =
+let fixup_file ~inplace f href_fixups =
+  Fmt.(pf stdout "==== FIXUP %s ====\n" f) ;
+  let href_fixups = href_fixups |> List.map (fun (frag, hr) ->
+                                       (Fmt.(str "%a" Fragment.pp_hum frag),
+                                        Fmt.(str "%a" pp_hum_href hr))) in
+  let m = MHM.ofList 23 href_fixups in
+  let contents = Bos.(f |> Fpath.v |> OS.File.read |> R.get_ok) in
+  let subst s = if MHM.in_dom m s then
+                  Fmt.(str "href='%s'" (MHM.map m s))
+                else Fmt.(str "href='%s'" s) in
+  let contents = [%subst {|href='#([^']+)'|} / {|subst $1$|} / pcre2 g e] contents in
+  let newf = f^".NEW" in
+  if not (R.is_ok (Bos.OS.File.write (Fpath.v newf) contents)) then
+    Fmt.(failwithf "fixup_file %s: couldn't write result file %s" f newf) ;
+  if inplace then
+    Bos.OS.U.(rename (Fpath.v newf) (Fpath.v f) |> error_to_msg |> Rresult.R.failwith_error_msg)
+
+let diagnose ~verbose ?(fixup=false) ?(inplace=false) fl =
   let file_basenames = List.map Filename.basename fl in
   let raw_hrefs_ids =
     fl |> List.map (fun f ->
@@ -212,36 +244,42 @@ let diagnose ~verbose ~fixup fl =
   |> List.map (fun (f, (hrefs, _)) ->
          Fmt.(pf stdout "================ %s ================\n" f) ;
          (f,
-          hrefs |> List.filter_map (fun (basef, frag as href) ->
-                       if MHS.mem href idset then
-                         None
-                       else if basef <> "" then begin
-                           Fmt.(pf stdout "REALLY BAD: href %a not found among IDs\n"
-                                  pp_hum_href href) ;
-                           None
-                         end
-                       else if MHM.in_dom ids_frag2file frag then begin
-                           Fmt.(pf stdout "FIXABLE ERROR: href %a should have been %a\n"
-                                  pp_hum_href href
-                                  pp_hum_href (MHM.map ids_frag2file frag, frag)) ;
-                             Some (frag, (MHM.map ids_frag2file frag, frag))
-                         end
-                       else if Fragment.is_generated frag &&
-                                 MHM.in_dom ids_suffix2id (suffix_of_generated href) then begin
-                           Fmt.(pf stdout "FIXABLE ERROR: href %a MIGHT ought to have been %a\n"
-                                  pp_hum_href href
-                                  pp_hum_href (MHM.map ids_suffix2id (suffix_of_generated href))) ;
-                           Some (frag, (MHM.map ids_suffix2id (suffix_of_generated href)))
-                         end
-                       else begin
-                           Fmt.(pf stdout "UNFIXABLE ERROR: (file %a) href %a not found anywhere in files\n"
-                                  Dump.string f
-                                  pp_hum_href href) ;
-                           None
-                         end
-                     )
+          hrefs
+          |> List.filter_map (fun (basef, frag as href) ->
+                 if MHS.mem href idset then
+                   None
+                 else if basef <> "" then begin
+                     Fmt.(pf stdout "REALLY BAD: href %a not found among IDs\n"
+                            pp_hum_href href) ;
+                     None
+                   end
+                 else if MHM.in_dom ids_frag2file frag then begin
+                     Fmt.(pf stdout "FIXABLE ERROR: href %a should have been %a\n"
+                            pp_hum_href href
+                            pp_hum_href (MHM.map ids_frag2file frag, frag)) ;
+                     Some (frag, (MHM.map ids_frag2file frag, frag))
+                   end
+                 else if Fragment.is_generated frag &&
+                           MHM.in_dom ids_suffix2id (suffix_of_generated href) then begin
+                     Fmt.(pf stdout "FIXABLE ERROR: href %a MIGHT ought to have been %a\n"
+                            pp_hum_href href
+                            pp_hum_href (MHM.map ids_suffix2id (suffix_of_generated href))) ;
+                     Some (frag, (MHM.map ids_suffix2id (suffix_of_generated href)))
+                   end
+                 else begin
+                     Fmt.(pf stdout "UNFIXABLE ERROR: (file %a) href %a not found anywhere in files\n"
+                            Dump.string f
+                            pp_hum_href href) ;
+                     None
+                   end
+               )
+          |> Std2.hash_uniq
          )
        ) in
-  ()
+  if fixup then
+    perfile_href_fixups
+    |> List.iter (fun (f, href_fixups) ->
+           if href_fixups <> [] then
+             fixup_file ~inplace f href_fixups)
 
 end

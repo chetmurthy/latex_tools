@@ -9,6 +9,7 @@ open Tools
 
 let verbose = ref false
 let fixup = ref false
+let inplace = ref false
 let rev_extra_args = ref []
 ;;
 
@@ -19,8 +20,10 @@ if not !Sys.interactive then begin
     Arg.(parse [
              "-verbose", (Arg.Set verbose),
              "verbose"
-           ; "-fixup", (Arg.Set verbose),
+           ; "-fixup", (Arg.Set fixup),
              "fixup the files (in-place update) for those problems that this tool thinks are fixable"
+           ; "-i", (Arg.Set inplace),
+             "do the fixup in-place (rename fixed-up file back to original name)"
            ]
            (Std.push rev_extra_args)
            "diagnose_refs <args> <input-files>") ;
@@ -28,6 +31,7 @@ if not !Sys.interactive then begin
     let input_files = List.rev !rev_extra_args  in
     let verbose = !verbose in
     let fixup = !fixup in
-    Html.DiagnoseRefs.diagnose ~verbose ~fixup input_files
+    let inplace = !inplace in
+    Html.DiagnoseRefs.diagnose ~verbose ~fixup ~inplace input_files
   end
 ;;
