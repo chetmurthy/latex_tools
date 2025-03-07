@@ -207,28 +207,41 @@ let diagnose ~verbose ~fixup fl =
   Fmt.(pf stdout "%s\n" (String.make 80 '=')) ;
   Fmt.(pf stdout "%s\n" (String.make 80 '=')) ;
 
-  hrefs_ids_list
-  |> List.iter (fun (f, (hrefs, _)) ->
+  let perfile_href_fixups =
+    hrefs_ids_list
+  |> List.map (fun (f, (hrefs, _)) ->
          Fmt.(pf stdout "================ %s ================\n" f) ;
-       hrefs |> List.iter (fun (basef, frag as href) ->
-           if not(MHS.mem href idset) then
-             if basef <> "" then
-               Fmt.(pf stdout "REALLY BAD: href %a not found among IDs\n"
-                      pp_hum_href href)
-             else if MHM.in_dom ids_frag2file frag then
-               Fmt.(pf stdout "FIXABLE ERROR: href %a should have been %a\n"
-                      pp_hum_href href
-                      pp_hum_href (MHM.map ids_frag2file frag, frag))
-             else if Fragment.is_generated frag &&
-                       MHM.in_dom ids_suffix2id (suffix_of_generated href) then
-               Fmt.(pf stdout "FIXABLE ERROR: href %a MIGHT ought to have been %a\n"
-                      pp_hum_href href
-                      pp_hum_href (MHM.map ids_suffix2id (suffix_of_generated href)))
-
-             else Fmt.(pf stdout "UNFIXABLE ERROR: (file %a) href %a not found anywhere in files\n"
-                       Dump.string f
-                       pp_hum_href href)
-                  )
-                    )
+         (f,
+          hrefs |> List.filter_map (fun (basef, frag as href) ->
+                       if MHS.mem href idset then
+                         None
+                       else if basef <> "" then begin
+                           Fmt.(pf stdout "REALLY BAD: href %a not found among IDs\n"
+                                  pp_hum_href href) ;
+                           None
+                         end
+                       else if MHM.in_dom ids_frag2file frag then begin
+                           Fmt.(pf stdout "FIXABLE ERROR: href %a should have been %a\n"
+                                  pp_hum_href href
+                                  pp_hum_href (MHM.map ids_frag2file frag, frag)) ;
+                             Some (frag, (MHM.map ids_frag2file frag, frag))
+                         end
+                       else if Fragment.is_generated frag &&
+                                 MHM.in_dom ids_suffix2id (suffix_of_generated href) then begin
+                           Fmt.(pf stdout "FIXABLE ERROR: href %a MIGHT ought to have been %a\n"
+                                  pp_hum_href href
+                                  pp_hum_href (MHM.map ids_suffix2id (suffix_of_generated href))) ;
+                           Some (frag, (MHM.map ids_suffix2id (suffix_of_generated href)))
+                         end
+                       else begin
+                           Fmt.(pf stdout "UNFIXABLE ERROR: (file %a) href %a not found anywhere in files\n"
+                                  Dump.string f
+                                  pp_hum_href href) ;
+                           None
+                         end
+                     )
+         )
+       ) in
+  ()
 
 end
