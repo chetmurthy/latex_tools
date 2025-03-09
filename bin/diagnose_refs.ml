@@ -7,7 +7,7 @@ open Latex_tools
 open Texparse
 open Tools
 
-let verbose = ref false
+let verbose = ref 0
 let fixup = ref false
 let inplace = ref false
 let rev_extra_args = ref []
@@ -18,8 +18,10 @@ Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 
 if not !Sys.interactive then begin
     Arg.(parse [
-             "-verbose", (Arg.Set verbose),
-             "verbose"
+             "-verbose", (Arg.Unit (fun() -> incr verbose)),
+             "verbose (can be called multiple times to increase verbosity)"
+           ; "-v", (Arg.Unit (fun() -> incr verbose)),
+             "verbose (can be called multiple times to increase verbosity)"
            ; "-fixup", (Arg.Set fixup),
              "fixup the files (in-place update) for those problems that this tool thinks are fixable"
            ; "-i", (Arg.Set inplace),

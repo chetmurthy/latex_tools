@@ -155,7 +155,7 @@ let ids_to_frag2file l =
   let partl = Utils.nway_partition snd Stdlib.compare l in
   let repeats = List.filter (function p -> List.length p > 1) partl in
   if repeats <> [] then begin
-      Fmt.(pf stdout "================ ids_to_frag2file: IDs are not distinct ================\n") ;
+      Fmt.(pf stdout "ERROR ================ ids_to_frag2file: IDs are not distinct ================\n") ;
       repeats |> List.iter (fun part ->
                      let fpart = fst (List.hd part) in
                      Fmt.(pf stdout "==== %s ====\n" fpart) ;
@@ -175,10 +175,10 @@ let ids_to_suffix2id l =
   let partl = Utils.nway_partition suffix_of_generated Stdlib.compare generated_ids in
   let repeats = List.filter (function p -> List.length p > 1) partl in
   if repeats <> [] then begin
-      Fmt.(pf stdout "======== ids_to_suffix2id: generated SUFFIXES of IDs are not distinct ========\n") ;
+      Fmt.(pf stdout "======== ERROR ids_to_suffix2id: generated SUFFIXES of IDs are not distinct ========\n") ;
       repeats |> List.iter (fun part ->
                      let suff = suffix_of_generated(List.hd part) in
-                     Fmt.(pf stdout "==== %s ====\n" suff) ;
+                     Fmt.(pf stdout "==== REPEATED SUFFIX %s ====\n" suff) ;
                      part |> List.iter (fun (f,frag) ->
                                  Fmt.(pf stdout "%a\n" pp_hum_href (f,frag)))
                    )
@@ -227,7 +227,7 @@ let diagnose ~verbose ?(fixup=false) ?(inplace=false) fl =
   let _,ids_frag2file = ids_to_frag2file ids in
   let _,ids_suffix2id = ids_to_suffix2id ids in
   
-  if verbose then begin
+  if verbose > 2 then begin
       Fmt.(pf stdout "================ ids_frag2file ================\n") ;
       ids_frag2file
       |> MHM.toList
@@ -236,13 +236,15 @@ let diagnose ~verbose ?(fixup=false) ?(inplace=false) fl =
              Fmt.(pf stdout "%a: %s\n" Fragment.pp_hum frag fpart)) ;
     end ;
 
-  Fmt.(pf stdout "%s\n" (String.make 80 '=')) ;
-  Fmt.(pf stdout "%s\n" (String.make 80 '=')) ;
+  if verbose > 0 then begin
+      Fmt.(pf stdout "%s\n" (String.make 80 '=')) ;
+      Fmt.(pf stdout "%s\n" (String.make 80 '='))
+    end ;
 
   let perfile_href_fixups =
     hrefs_ids_list
   |> List.map (fun (f, (hrefs, _)) ->
-         Fmt.(pf stdout "================ %s ================\n" f) ;
+         if verbose > 0 then Fmt.(pf stdout "================ %s ================\n" f) ;
          (f,
           hrefs
           |> List.filter_map (fun (basef, frag as href) ->
@@ -254,20 +256,24 @@ let diagnose ~verbose ?(fixup=false) ?(inplace=false) fl =
                      None
                    end
                  else if MHM.in_dom ids_frag2file frag then begin
-                     Fmt.(pf stdout "FIXABLE ERROR: href %a should have been %a\n"
-                            pp_hum_href href
-                            pp_hum_href (MHM.map ids_frag2file frag, frag)) ;
+                     if verbose > 0 then
+                       Fmt.(pf stdout "%a: FIXABLE ERROR: href %a should have been %a\n"
+                              Dump.string f
+                              pp_hum_href href
+                              pp_hum_href (MHM.map ids_frag2file frag, frag)) ;
                      Some (frag, (MHM.map ids_frag2file frag, frag))
                    end
                  else if Fragment.is_generated frag &&
                            MHM.in_dom ids_suffix2id (suffix_of_generated href) then begin
-                     Fmt.(pf stdout "FIXABLE ERROR: href %a MIGHT ought to have been %a\n"
-                            pp_hum_href href
-                            pp_hum_href (MHM.map ids_suffix2id (suffix_of_generated href))) ;
+                     if verbose > 0 then
+                       Fmt.(pf stdout "%a: FIXABLE ERROR: href %a MIGHT ought to have been %a\n"
+                              Dump.string f
+                              pp_hum_href href
+                              pp_hum_href (MHM.map ids_suffix2id (suffix_of_generated href))) ;
                      Some (frag, (MHM.map ids_suffix2id (suffix_of_generated href)))
                    end
                  else begin
-                     Fmt.(pf stdout "UNFIXABLE ERROR: (file %a) href %a not found anywhere in files\n"
+                     Fmt.(pf stdout "%a: UNFIXABLE ERROR: href %a not found anywhere in files\n"
                             Dump.string f
                             pp_hum_href href) ;
                      None
